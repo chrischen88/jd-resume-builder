@@ -4,8 +4,20 @@ import type { DocumentInterface } from "@langchain/core/documents";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { ChromaClient, type Metadata, type Where } from "chromadb";
 
+import { LOCAL_PROFILE_ID } from "@/db/schema";
+
 import { embeddingsFromEnv } from "../ai/models";
 import { ChromaVectorStore } from "./chroma-store";
+import { keywordVectorRemover } from "./job-keywords";
+
+export { evidenceRecord, evidenceText } from "./evidence";
+export { keywordVectorRemover, pruneKeywordVectors } from "./job-keywords";
+export type {
+  JobKeywordMetadata,
+  KeywordVectorScope,
+  KeywordVectorStore,
+  RemoveKeywordVectors,
+} from "./job-keywords";
 
 // Per SPEC: one embedding per JD requirement line (JobKeyword) and one per
 // Evidence record, so retrieval goes JD requirement → user evidence.
@@ -60,6 +72,19 @@ export class UserScopedVectorStore {
     return this.store.addDocuments(documents, { ids: records.map((r) => r.id) });
   }
 
+  /** Upserts records whose vectors were already computed (see embedTexts in lib/ai/client). */
+  async upsertVectors(records: (UserVectorRecord & { vector: number[] })[]): Promise<void> {
+    await this.store.addVectors(
+      records.map((r) => r.vector),
+      records.map((record) => ({
+        id: record.id,
+        pageContent: record.text,
+        metadata: { ...record.metadata, user_id: this.userId },
+      })),
+      { ids: records.map((r) => r.id) },
+    );
+  }
+
   /** Returns matches with cosine similarity, highest first. */
   async search(
     query: string,
@@ -78,6 +103,15 @@ export class UserScopedVectorStore {
   async delete(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     await this.store.delete({ ids, filter: this.scope() });
+  }
+
+  /** Deletes every record matching `filter` (always within this user's records). */
+  async deleteWhere(filter: Where): Promise<void> {
+    await this.store.delete({ filter: this.scope(filter) });
+  }
+
+  async ids(filter?: Where): Promise<string[]> {
+    return this.store.ids(this.scope(filter));
   }
 
   scope(filter?: Where): Where {
@@ -103,3 +137,16 @@ export function vectorStoreForUser(collection: CollectionName, userId: string) {
   }
   return new UserScopedVectorStore(store, userId);
 }
+
+/** The local user's JobKeyword vectors. */
+export function jobKeywordVectors(): UserScopedVectorStore {
+  return vectorStoreForUser(COLLECTIONS.jobKeywords, LOCAL_PROFILE_ID);
+}
+
+/** The local user's Evidence vectors. */
+export function evidenceVectors(): UserScopedVectorStore {
+  return vectorStoreForUser(COLLECTIONS.evidence, LOCAL_PROFILE_ID);
+}
+
+/** Best-effort removal of keyword vectors after rows that own them are deleted. */
+export const removeKeywordVectors = keywordVectorRemover(jobKeywordVectors);

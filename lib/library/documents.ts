@@ -9,6 +9,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { documents, type DocumentKind, type DocumentRow } from "@/db/schema";
 import { extractText, normalizeText } from "@/lib/parsing/extract-text";
+import type { RemoveKeywordVectors } from "@/lib/vector/job-keywords";
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TITLE_LENGTH = 120;
@@ -36,7 +37,8 @@ export function deriveTitle(text: string, filename?: string): string {
   return title.length > MAX_TITLE_LENGTH ? `${title.slice(0, MAX_TITLE_LENGTH - 1)}…` : title;
 }
 
-function hashText(text: string): string {
+/** sha256 of a text; documents.content_hash and keyword_extractions.text_hash. */
+export function hashText(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
@@ -44,7 +46,14 @@ function hashText(text: string): string {
  * The local document library: JDs and resumes as extracted text in SQLite,
  * with uploaded originals kept under <data dir>/uploads.
  */
-export function createLibrary({ db, dataDir }: { db: Db; dataDir: string }) {
+export interface LibraryDeps {
+  db: Db;
+  dataDir: string;
+  /** Removes job-keyword vectors when a JD's jobs are deleted with it (none in tests). */
+  removeKeywordVectors?: RemoveKeywordVectors;
+}
+
+export function createLibrary({ db, dataDir, removeKeywordVectors = async () => {} }: LibraryDeps) {
   return {
     async add(input: AddDocumentInput): Promise<DocumentRow> {
       const id = randomUUID();
@@ -127,6 +136,7 @@ export function createLibrary({ db, dataDir }: { db: Db; dataDir: string }) {
       const [row] = await db.delete(documents).where(eq(documents.id, id)).returning();
       if (!row) return false;
       if (row.storedPath) await rm(path.join(dataDir, row.storedPath), { force: true });
+      if (row.kind === "jd") await removeKeywordVectors({ document_id: id });
       return true;
     },
   };

@@ -34,13 +34,19 @@ export class ChromaVectorStore extends VectorStore {
   }
 
   private collection(): Promise<Collection> {
-    this.collectionPromise ??= this.client.getOrCreateCollection({
-      name: this.collectionName,
-      // Cosine space so scores line up with the spec's cosine ≥ 0.80 threshold.
-      configuration: { hnsw: { space: "cosine" } },
-      // Embeddings are computed by LangChain, never by Chroma.
-      embeddingFunction: null,
-    });
+    this.collectionPromise ??= this.client
+      .getOrCreateCollection({
+        name: this.collectionName,
+        // Cosine space so scores line up with the spec's cosine ≥ 0.80 threshold.
+        configuration: { hnsw: { space: "cosine" } },
+        // Embeddings are computed by LangChain, never by Chroma.
+        embeddingFunction: null,
+      })
+      .catch((err: unknown) => {
+        // Don't cache a failure (e.g. Chroma not started yet): retry next call.
+        this.collectionPromise = undefined;
+        throw err;
+      });
     return this.collectionPromise;
   }
 
@@ -97,6 +103,22 @@ export class ChromaVectorStore extends VectorStore {
       }),
       1 - (row.distance ?? 1),
     ]);
+  }
+
+  /** Ids of the records matching `filter`, paged so large collections aren't read in one call. */
+  async ids(filter?: Where, pageSize = 1000): Promise<string[]> {
+    const collection = await this.collection();
+    const ids: string[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await collection.get({
+        ...(filter ? { where: filter } : {}),
+        limit: pageSize,
+        offset,
+        include: [],
+      });
+      ids.push(...page.ids);
+      if (page.ids.length < pageSize) return ids;
+    }
   }
 
   async delete(params: { ids?: string[]; filter?: Where }): Promise<void> {

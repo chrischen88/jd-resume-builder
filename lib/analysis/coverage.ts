@@ -1,9 +1,12 @@
+import { WEAK_COVERAGE_SIMILARITY } from "./config";
 import type { MergedSkill } from "./merge";
+import { cosineSimilarity } from "./similarity";
 import { contentTokens, findPhraseOffsets } from "./text";
+import type { SkillCategory } from "./types";
 
 // Coverage of each skill against the resume (SPEC §AI design 3, F8).
-// Exact + synonym matching only; embedding similarity (cosine ≥ 0.80 → weak)
-// is added in task 1.10.
+// classifyCoverage: exact + synonym matching. semanticWeakMatches: the
+// embedding pass over what's still missing (cosine ≥ 0.80 → weak).
 
 export type Coverage = "covered" | "weak" | "missing";
 
@@ -104,4 +107,56 @@ export function classifyCoverage(skills: MergedSkill[], resumeText: string): Ski
 
     return { key: skill.key, coverage: "missing", matchedTerm: null, evidence: [] };
   });
+}
+
+export interface EmbeddedLine {
+  text: string;
+  vector: number[];
+}
+
+export interface SemanticCandidate {
+  key: string;
+  category: SkillCategory;
+  coverage: Coverage;
+  /** The skill's JD requirement lines. */
+  mentions: { evidenceQuote: string }[];
+}
+
+/**
+ * Embedding pass after classifyCoverage. A missing skill becomes weak when one
+ * of its JD requirement lines has cosine similarity ≥ threshold with an
+ * experience bullet. Only bullets count: summary and skills-list lines read as
+ * similar to almost any requirement. Tools are skipped, as in the lexical
+ * pass: a similar tool list names different tools.
+ *
+ * Returns the matching bullets (best first, max 3) for each skill that
+ * becomes weak.
+ */
+export function semanticWeakMatches(
+  skills: SemanticCandidate[],
+  bullets: EmbeddedLine[],
+  quoteVector: (quote: string) => number[] | undefined,
+  threshold = WEAK_COVERAGE_SIMILARITY,
+): Map<string, string[]> {
+  const matches = new Map<string, string[]>();
+  for (const skill of skills) {
+    if (skill.coverage !== "missing" || skill.category === "tool") continue;
+    const quoteVectors = [...new Set(skill.mentions.map((m) => m.evidenceQuote))]
+      .map(quoteVector)
+      .filter((v): v is number[] => v !== undefined);
+    const scored = bullets
+      .map((bullet) => ({
+        text: bullet.text,
+        score: Math.max(-1, ...quoteVectors.map((v) => cosineSimilarity(v, bullet.vector))),
+      }))
+      .filter((b) => b.score >= threshold)
+      .sort((a, b) => b.score - a.score);
+    if (scored.length > 0) {
+      matches.set(
+        skill.key,
+        scored.slice(0, MAX_EVIDENCE).map((b) => b.text),
+      );
+    }
+  }
+  return matches;
 }

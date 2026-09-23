@@ -41,10 +41,7 @@ export default async function AnalysisPage({ searchParams }: PageProps<"/analysi
   const jds = docs.filter((d) => d.kind === "jd");
   const cached = await (
     await getExtractionStore()
-  ).cached(
-    jds.map((d) => d.id),
-    currentExtractionKey(),
-  );
+  ).cached(jds, currentExtractionKey());
 
   if (resumes.length === 0 || jds.length === 0) {
     return (

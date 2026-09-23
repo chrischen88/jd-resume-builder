@@ -1,0 +1,1 @@
+ALTER TABLE `skill_demands` ADD `terms` text DEFAULT '[]' NOT NULL;

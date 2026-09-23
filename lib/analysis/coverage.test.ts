@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyCoverage } from "./coverage";
+import { classifyCoverage, semanticWeakMatches, type SemanticCandidate } from "./coverage";
 import { mergeSkills } from "./merge";
 import type { ExtractedKeyword } from "./types";
 
@@ -135,5 +135,54 @@ describe("classifyCoverage", () => {
     const text = ["SQL one", "SQL two", "SQL three", "SQL four"].join("\n");
     const [sql] = classifyCoverage(skills("SQL"), text);
     expect(sql.evidence).toEqual(["SQL one", "SQL two", "SQL three"]);
+  });
+});
+
+describe("semanticWeakMatches", () => {
+  const vectors: Record<string, number[]> = {
+    "Deploy models to cloud platforms": [1, 0, 0],
+    "Terraform, Pulumi": [0, 1, 0],
+  };
+  const quoteVector = (quote: string) => vectors[quote];
+  const candidate = (over: Partial<SemanticCandidate>): SemanticCandidate => ({
+    key: "cloud-deployment",
+    category: "hard_skill",
+    coverage: "missing",
+    mentions: [{ evidenceQuote: "Deploy models to cloud platforms" }],
+    ...over,
+  });
+  const bullets = [
+    { text: "Wrote the team style guide", vector: [0, 0, 1] },
+    { text: "Shipped 14 models to production", vector: [0.9, 0.1, 0] },
+    { text: "Deployed a model on GCP", vector: [0.8, 0, 0.3] },
+    { text: "Managed Terraform modules", vector: [0.1, 1, 0] },
+  ];
+
+  it("marks a missing skill weak when a requirement line is close to a bullet", () => {
+    const matches = semanticWeakMatches([candidate({})], bullets, quoteVector, 0.8);
+    expect(matches.get("cloud-deployment")).toEqual([
+      "Shipped 14 models to production",
+      "Deployed a model on GCP",
+    ]);
+  });
+
+  it("leaves skills below the threshold, already matched, or tools alone", () => {
+    expect(semanticWeakMatches([candidate({})], bullets, quoteVector, 0.999).size).toBe(0);
+    // Each of these would clear 0.9 if it were checked.
+    const matches = semanticWeakMatches(
+      [
+        candidate({ key: "covered", coverage: "covered" }),
+        candidate({
+          key: "terraform",
+          category: "tool",
+          mentions: [{ evidenceQuote: "Terraform, Pulumi" }],
+        }),
+        candidate({ key: "no-vector", mentions: [{ evidenceQuote: "unknown" }] }),
+      ],
+      bullets,
+      quoteVector,
+      0.9,
+    );
+    expect(matches.size).toBe(0);
   });
 });

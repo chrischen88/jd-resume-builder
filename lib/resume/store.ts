@@ -15,6 +15,8 @@ import {
   type RoleRow,
 } from "@/db/schema";
 
+import type { RemoveKeywordVectors } from "@/lib/vector/job-keywords";
+
 import type { ParsedResume } from "./ground";
 
 export type RoleFields = Pick<RoleRow, "employer" | "title" | "location" | "startDate" | "endDate">;
@@ -72,7 +74,13 @@ export interface ResumeDetail extends ResumeRow {
 }
 
 /** Resumes as structured rows: sections on the resume, roles and bullets in their own tables. */
-export function createResumeStore({ db }: { db: Db }) {
+export interface ResumeStoreDeps {
+  db: Db;
+  /** Removes job-keyword vectors of the resume's target sets on delete (none in tests). */
+  removeKeywordVectors?: RemoveKeywordVectors;
+}
+
+export function createResumeStore({ db, removeKeywordVectors = async () => {} }: ResumeStoreDeps) {
   return {
     /**
      * Saves a parsed resume in one transaction. Its bullets are stored as
@@ -207,6 +215,7 @@ export function createResumeStore({ db }: { db: Db }) {
 
     async remove(id: string): Promise<boolean> {
       const [row] = await db.delete(resumes).where(eq(resumes.id, id)).returning();
+      if (row) await removeKeywordVectors({ resume_id: id });
       return !!row;
     },
   };

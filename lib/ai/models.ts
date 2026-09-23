@@ -75,11 +75,13 @@ export function createChatModel(
   });
 }
 
+export function embeddingModelFromEnv(env: Env = process.env): string {
+  return env.OPENAI_EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
+}
+
 /** Embeddings for the Chroma vector store. Always OpenAI, whatever the chat provider. */
 export function embeddingsFromEnv(env: Env = process.env): EmbeddingsInterface {
-  return new OpenAIEmbeddings({
-    model: env.OPENAI_EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL,
-  });
+  return new OpenAIEmbeddings({ model: embeddingModelFromEnv(env) });
 }
 
 export interface StructuredRequest {

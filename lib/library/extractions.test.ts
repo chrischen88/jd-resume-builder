@@ -64,6 +64,29 @@ describe("extraction store", () => {
     expect(extract).toHaveBeenCalledTimes(3);
   });
 
+  it("caches a document's full and cleaned text separately", async () => {
+    const a = await library.add({ kind: "jd", text: "Job A\nThe base salary range is $1." });
+    const clean = { id: a.id, text: "Job A" };
+    const extract = vi.fn<Extractor>(async (text) => extraction(text));
+
+    await store.ensure([a], key, extract);
+    expect((await store.cached([clean], key)).size).toBe(0);
+    const result = await store.ensure([clean], key, extract);
+    expect(extract).toHaveBeenCalledTimes(2);
+    expect(result.get(a.id)?.job.title).toBe("Job A");
+    expect((await store.cached([a], key)).get(a.id)?.job.title).toContain("salary");
+  });
+
+  it("reports each extraction for progress, cached ones first", async () => {
+    const a = await library.add({ kind: "jd", text: "Job A" });
+    const b = await library.add({ kind: "jd", text: "Job B" });
+    await store.ensure([a], key, async (text) => extraction(text));
+    const onExtracted = vi.fn();
+    await store.ensure([a, b], key, async (text) => extraction(text), { onExtracted });
+    // The cached one first, then the new one.
+    expect(onExtracted.mock.calls).toEqual([[a.id], [b.id]]);
+  });
+
   it("keeps finished extractions when one fails, then rethrows", async () => {
     const a = await library.add({ kind: "jd", text: "Job A" });
     const b = await library.add({ kind: "jd", text: "Job B" });
@@ -75,7 +98,7 @@ describe("extraction store", () => {
     await expect(store.ensure([a, b], key, extract, { concurrency: 1 })).rejects.toThrow(
       "model down",
     );
-    const cached = await store.cached([a.id, b.id], key);
+    const cached = await store.cached([a, b], key);
     expect([...cached.keys()]).toEqual([a.id]);
   });
 
@@ -83,7 +106,7 @@ describe("extraction store", () => {
     const a = await library.add({ kind: "jd", text: "Job A" });
     await store.ensure([a], key, async (text) => extraction(text));
     await library.remove(a.id);
-    expect((await store.cached([a.id], key)).size).toBe(0);
+    expect((await store.cached([a], key)).size).toBe(0);
     expect(await db.query.keywordExtractions.findMany()).toEqual([]);
   });
 });

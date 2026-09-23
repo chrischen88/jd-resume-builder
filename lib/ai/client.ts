@@ -1,8 +1,11 @@
 import "server-only";
 
+import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { z } from "zod";
 
 import {
+  embeddingModelFromEnv,
+  embeddingsFromEnv,
   langchainStructuredChat,
   modelConfigFromEnv,
   normalizeResponse,
@@ -217,4 +220,47 @@ export async function callStructured<Schema extends z.ZodType>(
 
   // Unreachable: the loop either returns or throws.
   throw new Error("callStructured exited without a result");
+}
+
+/** Metadata only. Never add the embedded text to this shape. */
+export interface AiEmbedLog {
+  model: string;
+  texts: number;
+  latency_ms: number;
+  outcome: "ok" | "api_error";
+}
+
+export interface EmbedOptions {
+  /** Injected in tests; defaults to the OpenAI embeddings configured from env. */
+  embeddings?: EmbeddingsInterface;
+  logger?: (entry: AiEmbedLog) => void;
+}
+
+/** Embeds texts in one batch; returns one vector per text, in order. */
+export async function embedTexts(texts: string[], options: EmbedOptions = {}): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const embeddings = options.embeddings ?? embeddingsFromEnv();
+  const logger =
+    options.logger ?? ((entry) => console.info(JSON.stringify({ event: "ai_embed", ...entry })));
+  const started = Date.now();
+  const log = (outcome: AiEmbedLog["outcome"]) =>
+    logger({
+      model: embeddingModelFromEnv(),
+      texts: texts.length,
+      latency_ms: Date.now() - started,
+      outcome,
+    });
+
+  let vectors: number[][];
+  try {
+    vectors = await embeddings.embedDocuments(texts);
+  } catch (err) {
+    log("api_error");
+    throw err;
+  }
+  log("ok");
+  if (vectors.length !== texts.length) {
+    throw new Error(`Expected ${texts.length} embeddings, got ${vectors.length}`);
+  }
+  return vectors;
 }

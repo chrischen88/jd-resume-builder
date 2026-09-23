@@ -3,6 +3,7 @@ import "server-only";
 import { getDb } from "@/db/client";
 import { parseResumeText } from "@/lib/ai/parse-resume";
 import { getLibrary } from "@/lib/library";
+import { removeKeywordVectors } from "@/lib/vector";
 
 import { importResumeDocument, type ResumeImport } from "./import";
 import { createResumeStore, type ResumeStore } from "./store";
@@ -13,7 +14,7 @@ export type { ParseIssue, ParsedResume, ParsedRole } from "./ground";
 export type { ResumeDetail, RoleWithBullets } from "./store";
 
 export async function getResumeStore(): Promise<ResumeStore> {
-  return createResumeStore({ db: await getDb() });
+  return createResumeStore({ db: await getDb(), removeKeywordVectors });
 }
 
 /** Parses a library resume with the configured model and saves it. */

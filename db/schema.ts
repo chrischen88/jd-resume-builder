@@ -67,8 +67,9 @@ export type DocumentRow = typeof documents.$inferSelect;
 
 /**
  * Cached keyword extraction per JD, so re-analyzing a JD doesn't repeat the
- * model call. Keyed by prompt version and model: changing either re-extracts.
- * Documents are immutable, so a row never goes stale otherwise.
+ * model call. Keyed by the extracted text's hash, prompt version, and model:
+ * changing any of them re-extracts. The same document can have one row for
+ * its full text and one for its boilerplate-stripped text (jobs.jd_clean).
  */
 export const keywordExtractions = sqliteTable(
   "keyword_extractions",
@@ -77,6 +78,8 @@ export const keywordExtractions = sqliteTable(
     documentId: text("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
+    /** sha256 of the text the extraction ran on (same hash as documents.content_hash). */
+    textHash: text("text_hash").notNull().default(""),
     promptVersion: text("prompt_version").notNull(),
     model: text("model").notNull(),
     result: text("result", { mode: "json" })
@@ -85,8 +88,9 @@ export const keywordExtractions = sqliteTable(
     createdAt: createdAt(),
   },
   (table) => [
-    uniqueIndex("keyword_extractions_doc_version_idx").on(
+    uniqueIndex("keyword_extractions_doc_text_version_idx").on(
       table.documentId,
+      table.textHash,
       table.promptVersion,
       table.model,
     ),
@@ -269,6 +273,10 @@ export const targetSets = sqliteTable("target_sets", {
     .notNull()
     .references(() => resumes.id, { onDelete: "cascade" }),
   status: text("status", { enum: TARGET_SET_STATUSES }).notNull().default("draft"),
+  /** Why the last analysis failed (status "failed"); user-facing, no JD text. */
+  analysisError: text("analysis_error"),
+  /** When the last analysis finished successfully. */
+  analyzedAt: integer("analyzed_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -360,6 +368,11 @@ export const skillDemands = sqliteTable(
     matchedTerm: text("matched_term"),
     /** Resume lines supporting the match (max 3). */
     coverageEvidence: stringList("coverage_evidence"),
+    /**
+     * Wordings that count as naming the skill (name, aliases, JD phrasings),
+     * for matching bullets without re-running the merge.
+     */
+    terms: text("terms", { mode: "json" }).$type<string[]>().notNull().default([]),
     proofBulletId: text("proof_bullet_id").references(() => bullets.id, {
       onDelete: "set null",
     }),
@@ -368,6 +381,42 @@ export const skillDemands = sqliteTable(
     dismissed: integer("dismissed", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [uniqueIndex("skill_demands_set_skill_idx").on(table.targetSetId, table.skillId)],
+);
+
+export const SUGGESTION_STATUSES = ["pending", "accepted", "dismissed"] as const;
+
+/**
+ * A suggested rewording of a bullet that shows a skill in other words, using
+ * the JDs' phrase (SPEC §AI design 4). Never applied until the user accepts
+ * it; `original_text` detects bullets edited since.
+ */
+export const rewordSuggestions = sqliteTable(
+  "reword_suggestions",
+  {
+    id: id(),
+    targetSetId: text("target_set_id")
+      .notNull()
+      .references(() => targetSets.id, { onDelete: "cascade" }),
+    bulletId: text("bullet_id")
+      .notNull()
+      .references(() => bullets.id, { onDelete: "cascade" }),
+    skillId: text("skill_id")
+      .notNull()
+      .references(() => skills.id),
+    originalText: text("original_text").notNull(),
+    suggestedText: text("suggested_text").notNull(),
+    jdPhrase: text("jd_phrase").notNull(),
+    status: text("status", { enum: SUGGESTION_STATUSES }).notNull().default("pending"),
+    promptVersion: text("prompt_version").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("reword_suggestions_set_bullet_skill_idx").on(
+      table.targetSetId,
+      table.bulletId,
+      table.skillId,
+    ),
+  ],
 );
 
 // ---------------------------------------------------------------------------
@@ -462,6 +511,7 @@ export type JobRow = typeof jobs.$inferSelect;
 export type JobKeywordRow = typeof jobKeywords.$inferSelect;
 export type JobSkillScoreRow = typeof jobSkillScores.$inferSelect;
 export type SkillDemandRow = typeof skillDemands.$inferSelect;
+export type RewordSuggestionRow = typeof rewordSuggestions.$inferSelect;
 export type GapAnswerRow = typeof gapAnswers.$inferSelect;
 export type LearningItemRow = typeof learningItems.$inferSelect;
 export type ResumeVersionRow = typeof resumeVersions.$inferSelect;

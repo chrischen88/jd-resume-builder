@@ -1,8 +1,15 @@
+import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { AIMessage } from "@langchain/core/messages";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { AiOutputError, callStructured, type AiCallLog } from "./client";
+import {
+  AiOutputError,
+  callStructured,
+  embedTexts,
+  type AiCallLog,
+  type AiEmbedLog,
+} from "./client";
 import type { ProviderName, StructuredChat } from "./models";
 import type { PromptDefinition } from "./prompts/types";
 
@@ -149,5 +156,38 @@ describe("callStructured", () => {
     expect(serialized).not.toContain("SECRET RESUME TEXT");
     expect(serialized).not.toContain("Extract skills.");
     expect(serialized).not.toContain("SQL");
+  });
+});
+
+describe("embedTexts", () => {
+  it("returns one vector per text and logs counts, never the text", async () => {
+    const embeddings = {
+      embedDocuments: vi.fn(async (texts: string[]) => texts.map((t) => [t.length])),
+    } as unknown as EmbeddingsInterface;
+    const logs: AiEmbedLog[] = [];
+
+    const vectors = await embedTexts(["SECRET JD LINE", "ab"], {
+      embeddings,
+      logger: (e) => logs.push(e),
+    });
+
+    expect(vectors).toEqual([[14], [2]]);
+    expect(logs).toEqual([expect.objectContaining({ texts: 2, outcome: "ok" })]);
+    expect(JSON.stringify(logs)).not.toContain("SECRET");
+  });
+
+  it("logs and rethrows API errors, and skips the call for no texts", async () => {
+    const embeddings = {
+      embedDocuments: vi.fn(async () => {
+        throw new Error("429");
+      }),
+    } as unknown as EmbeddingsInterface;
+    const logs: AiEmbedLog[] = [];
+    await expect(embedTexts(["a"], { embeddings, logger: (e) => logs.push(e) })).rejects.toThrow(
+      "429",
+    );
+    expect(logs[0].outcome).toBe("api_error");
+    expect(await embedTexts([], { embeddings })).toEqual([]);
+    expect(embeddings.embedDocuments).toHaveBeenCalledTimes(1);
   });
 });

@@ -108,7 +108,8 @@ SQLite via Drizzle (`db/schema.ts`). Single local user, so there are no `user_id
 | Job | id, target_set_id, document_id, company, title, seniority, years_experience_min, source_url, jd_clean |
 | JobKeyword | id, job_id, skill_id, jd_phrase, evidence_quote, importance (required/preferred/mentioned) — one row per mention |
 | JobSkillScore | job_id, skill_id, importance, frequency, in_title, in_first_third, score — score_j, once per JD and skill |
-| SkillDemand | id, target_set_id, skill_id, jd_count, required_count, demand_score, must_do, rank, coverage (covered/weak/missing), matched_term, coverage_evidence[], proof_bullet_id, user_rank, dismissed |
+| SkillDemand | id, target_set_id, skill_id, jd_count, required_count, demand_score, must_do, rank, coverage (covered/weak/missing), matched_term, coverage_evidence[], terms[], proof_bullet_id, user_rank, dismissed |
+| RewordSuggestion | id, target_set_id, bullet_id, skill_id, original_text, suggested_text, jd_phrase, status (pending/accepted/dismissed), prompt_version |
 | GapAnswer | id, skill_demand_id (one per gap), response (yes/somewhat/no), follow_ups[], evidence_id |
 | Evidence | id, role_id, skills (via evidence_skills), situation, action, tools[], scale, result, metric |
 | LearningItem | id, skill_id (one per skill), target_set_id, keywords[], related_skills[], jd_count, resources[], status (to_learn/learning/done) |
@@ -152,7 +153,7 @@ Weights live in config. User overrides always win.
 
 ### 3. Coverage matching
 
-Exact + synonym match against resume text, then embedding similarity (cosine ≥ 0.80 → "weak"). Weak matches are confirmed in the interview.
+Exact + synonym match against resume text, then embedding similarity for what's still missing: a skill is "weak" when one of its JD requirement lines has cosine ≥ 0.80 with an experience bullet (not summary or skills-list lines, which read as similar to almost anything; tools skipped, since a similar tool list names different tools). Weak matches are confirmed in the interview.
 
 ### 4. Strengths detection
 

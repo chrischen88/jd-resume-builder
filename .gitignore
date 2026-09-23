@@ -52,3 +52,7 @@ next-env.d.ts
 
 # golden test outputs (contain JD text)
 /tests/golden/output/
+
+# local tooling: Claude Code settings, graphify knowledge graph
+/.claude/
+/graphify-out/
