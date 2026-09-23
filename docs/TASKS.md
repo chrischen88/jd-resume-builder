@@ -48,7 +48,10 @@ Goal: prove the analysis is useful before building UI.
   - Open: edits after confirming don't re-require confirmation; no reordering of roles or moving a bullet between roles (delete + retype instead).
 
 ### JDs and analysis (F2, F5–F8)
-- [ ] 1.8 Target set + add JDs endpoints; boilerplate stripping.
+- [x] 1.8 Target set + add JDs endpoints; boilerplate stripping.
+  - `lib/target-sets` store: create for a resume, add library JDs (all-or-nothing; skips ones already in the set; max 20, min 2 checked at analyze time), remove a JD, rename, list with job counts, delete. Server Actions come with the screen in 1.11 rather than as unused endpoints.
+  - `lib/parsing/boilerplate.ts`: deterministic stripping into `jobs.jd_clean`. Drops sections under EEO / benefits / pay / "About <Company>" headings (until the next content heading) and unheaded lines with strong phrases (equal opportunity employer, base salary range, 401(k), "raised $25 million"…). Output is only original lines, so quotes grounded in it are verbatim in the document. Keeps the original if stripping would leave < 40% of the words. On the 7 fixtures it removes exactly jd5's funding blurb and jd6's salary paragraph.
+  - For 1.9: extract and score on `jd_clean`. The extraction cache is keyed by document, so key it by the cleaned text (e.g. a hash) as well, or cached extractions of the full text get reused.
 - [ ] 1.9 `POST /api/target-sets/:id/analyze` job: extract → merge → score → coverage → write `JobKeyword` and `SkillDemand`.
 - [ ] 1.10 Embeddings for JobKeyword and Evidence into Chroma via `vectorStoreForUser()` (store + scoping already in `lib/vector`); weak coverage via cosine ≥ 0.80; delete vectors when rows are deleted.
 - [ ] 1.11 Screen 2: build a target set by picking JDs from the Library, analyze with progress.
