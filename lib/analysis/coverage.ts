@@ -18,6 +18,19 @@ export interface SkillCoverage {
 
 const MAX_EVIDENCE = 3;
 
+/** Shortest stem that may match a longer word form ("communicat" ~ "communication"). */
+const MIN_PREFIX_STEM = 6;
+
+/**
+ * Loose match between two stemmed words: one is a prefix of the other and
+ * the shared part is long enough to be meaningful ("communicat" and
+ * "communication", "statistic" and "statistical").
+ */
+function sameWordFamily(a: string, b: string): boolean {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= MIN_PREFIX_STEM && long.startsWith(short);
+}
+
 function resumeLines(resumeText: string): string[] {
   return resumeText
     .split("\n")
@@ -30,13 +43,16 @@ function resumeLines(resumeText: string): string[] {
  *   whole phrase in the resume.
  * - weak: a multi-word skill isn't there verbatim, but all of its content
  *   words (roughly stemmed) appear in one resume line, e.g. "model deployment"
- *   vs "deployed models to production". Weak matches get confirmed in the
- *   interview.
+ *   vs "deployed models to production". Or a one-word skill that isn't a
+ *   tool appears in another word form ("Communicated" for Communication).
+ *   Tools are skipped: their names aren't inflected, so a near-match is a
+ *   different word. Weak matches get confirmed in the interview.
  * - missing: neither.
  */
 export function classifyCoverage(skills: MergedSkill[], resumeText: string): SkillCoverage[] {
   const lines = resumeLines(resumeText);
-  const lineTokens = lines.map((line) => new Set(contentTokens(line)));
+  const lineTokenLists = lines.map((line) => contentTokens(line));
+  const lineTokens = lineTokenLists.map((tokens) => new Set(tokens));
 
   return skills.map((skill) => {
     // Name and aliases first so matchedTerm prefers the canonical wording.
@@ -65,6 +81,24 @@ export function classifyCoverage(skills: MergedSkill[], resumeText: string): Ski
           matchedTerm: term,
           evidence: evidence.slice(0, MAX_EVIDENCE),
         };
+      }
+    }
+
+    if (skill.category !== "tool") {
+      for (const term of terms) {
+        const tokens = [...new Set(contentTokens(term))];
+        if (tokens.length !== 1) continue;
+        const evidence = lines.filter((_, i) =>
+          lineTokenLists[i].some((t) => sameWordFamily(t, tokens[0])),
+        );
+        if (evidence.length > 0) {
+          return {
+            key: skill.key,
+            coverage: "weak",
+            matchedTerm: term,
+            evidence: evidence.slice(0, MAX_EVIDENCE),
+          };
+        }
       }
     }
 

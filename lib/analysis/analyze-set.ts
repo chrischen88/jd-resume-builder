@@ -1,3 +1,4 @@
+import { narrowListPhrase } from "./evidence";
 import { classifyCoverage, type SkillCoverage } from "./coverage";
 import { mergeSkills, type MergeOptions } from "./merge";
 import { scoreSkills, type JobText, type SkillDemand } from "./score";
@@ -23,7 +24,15 @@ export function analyzeSet(
   options: MergeOptions = {},
 ): SkillRow[] {
   const merged = mergeSkills(
-    jobs.map((job) => ({ jobId: job.jobId, keywords: job.keywords })),
+    jobs.map((job) => ({
+      jobId: job.jobId,
+      // checkEvidence already narrows new extractions; this also covers ones
+      // cached before it did. Idempotent.
+      keywords: job.keywords.map((k) => ({
+        ...k,
+        jd_phrase: narrowListPhrase(k.jd_phrase, k.canonical_skill),
+      })),
+    })),
     options,
   );
   const demands = scoreSkills(merged, jobs);

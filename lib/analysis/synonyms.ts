@@ -24,11 +24,27 @@ export const SKILL_SYNONYMS: Record<string, string[]> = {
   "Computer vision": [],
   "Large language models": ["llm", "llms", "large language model"],
   "Retrieval-augmented generation": ["rag", "retrieval augmented generation"],
-  "AI agents": ["agents", "agentic systems", "agentic ai", "llm agents", "autonomous agents"],
+  // Agent frameworks and orchestration are how agents get built, and the
+  // interview question is the same ("have you built agents?"), so they merge.
+  "AI agents": [
+    "agents",
+    "agentic systems",
+    "agentic ai",
+    "llm agents",
+    "autonomous agents",
+    "agentic design",
+    "agent frameworks",
+    "agentic frameworks",
+    "agent orchestration",
+    "agentic orchestration",
+    "agent orchestration frameworks",
+  ],
   "LLM evaluation": ["evals", "llm evals", "model evaluation for llms"],
   "Fine-tuning": ["finetuning", "fine tuning llms", "model fine-tuning"],
   "Prompt engineering": ["prompting", "prompt design"],
   MLOps: ["ml ops", "machine learning operations"],
+  // Seen verbatim in a JD that means MLflow.
+  MLflow: ["machine learning flow"],
   "Optical character recognition": ["ocr"],
   "Vector databases": ["vector database", "vector db", "vector dbs", "vector stores", "vector store"],
   Embeddings: ["embedding", "text embeddings", "vector embeddings"],
@@ -55,4 +71,8 @@ export const SKILL_SYNONYMS: Record<string, string[]> = {
   "Apache Airflow": ["airflow"],
   "Apache Kafka": ["kafka"],
   "REST APIs": ["rest api", "restful apis", "restful api"],
+
+  // Soft skills
+  Communication: ["communication skills"],
+  Collaboration: ["team collaboration", "teamwork"],
 };

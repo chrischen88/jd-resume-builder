@@ -76,6 +76,29 @@ describe("classifyCoverage", () => {
     expect(k8s.coverage).toBe("covered");
   });
 
+  it("marks a one-word skill weak when the resume uses another word form", () => {
+    const text = "• Communicated weekly status to stakeholders.\n• Statistical analysis of churn.";
+    const merged = skills("Communication", "Statistics", {
+      canonical_skill: "Communication skills",
+      jd_phrase: "strong communication skills",
+    });
+    const result = classifyCoverage(merged, text);
+    expect(result.map((r) => [r.coverage, r.evidence])).toEqual([
+      ["weak", ["• Communicated weekly status to stakeholders."]],
+      ["weak", ["• Statistical analysis of churn."]],
+    ]);
+  });
+
+  it("does not loosely match tools or short words", () => {
+    const text = "Dockerized services; led the team; owned delivery.";
+    const merged = skills({ canonical_skill: "Docker", category: "tool" }, "Leadership", "Owner");
+    expect(classifyCoverage(merged, text).map((r) => r.coverage)).toEqual([
+      "missing",
+      "missing",
+      "missing",
+    ]);
+  });
+
   it("does not mark words spread across lines as weak", () => {
     // "retrieval" and "ranking" appear, but on different lines.
     const [skill] = classifyCoverage(skills("Retrieval ranking"), resume);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { checkEvidence, normalizeForMatch } from "./evidence";
+import { checkEvidence, narrowListPhrase, normalizeForMatch } from "./evidence";
 import type { ExtractedKeyword } from "./types";
 
 const jd = `About the role
@@ -24,6 +24,23 @@ function kw(overrides: Partial<ExtractedKeyword>): ExtractedKeyword {
 describe("normalizeForMatch", () => {
   it("normalizes case, whitespace, quotes, dashes, and bullets only", () => {
     expect(normalizeForMatch("•  “Hi” — it’s\n\tok")).toBe(`"hi" - it's ok`);
+  });
+});
+
+describe("narrowListPhrase", () => {
+  it("narrows a list to the skill, keeping the JD's spelling", () => {
+    expect(narrowListPhrase("PyTorch, TensorFlow, scikit-learn", "TensorFlow")).toBe("TensorFlow");
+    expect(narrowListPhrase("technologies like Spark, Airflow, dbt", "spark")).toBe("Spark");
+    expect(narrowListPhrase("ML frameworks (PyTorch, TensorFlow)", "ML frameworks")).toBe(
+      "ML frameworks",
+    );
+  });
+
+  it("leaves non-lists and lists without the skill's name alone", () => {
+    expect(narrowListPhrase("production ML systems", "Machine learning")).toBe(
+      "production ML systems",
+    );
+    expect(narrowListPhrase("Python, Go, or Java", "Golang")).toBe("Python, Go, or Java");
   });
 });
 
@@ -100,6 +117,14 @@ describe("checkEvidence", () => {
     ]);
     expect(result.kept).toEqual([]);
     expect(result.droppedPhraseNotFound).toBe(2);
+  });
+
+  it("narrows a list-shaped jd_phrase to the one skill", () => {
+    const listJd = "Experience with PyTorch, TensorFlow, or JAX.";
+    const { kept } = checkEvidence(listJd, [
+      kw({ jd_phrase: "PyTorch, TensorFlow, or JAX", canonical_skill: "TensorFlow", evidence_quote: listJd }),
+    ]);
+    expect(kept.map((k) => k.jd_phrase)).toEqual(["TensorFlow"]);
   });
 
   it("drops empty items and exact duplicates, and trims names", () => {

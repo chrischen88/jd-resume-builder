@@ -1,3 +1,4 @@
+import { findPhraseOffsets } from "./text";
 import type { ExtractedKeyword } from "./types";
 
 // Grounding checks for extracted keywords (CLAUDE.md: evidence_quote must
@@ -68,6 +69,17 @@ function trimTrailingPunctuation(text: string): string {
   return text.replace(/[\s.;:,!?]+$/u, "");
 }
 
+/**
+ * The model sometimes returns a whole list as jd_phrase ("PyTorch,
+ * TensorFlow, scikit-learn") for each item in it. When the phrase is a list
+ * and contains the skill's name, narrow it to that name as written in the JD.
+ */
+export function narrowListPhrase(jdPhrase: string, skill: string): string {
+  if (!/[,;/(]/.test(jdPhrase)) return jdPhrase;
+  const [at] = findPhraseOffsets(jdPhrase, skill);
+  return at === undefined ? jdPhrase : jdPhrase.slice(at, at + skill.trim().length);
+}
+
 export interface EvidenceCheckResult {
   kept: ExtractedKeyword[];
   droppedQuoteNotFound: number;
@@ -81,8 +93,9 @@ export interface EvidenceCheckResult {
  * normalizeForMatch and trailing punctuation) and whose jd_phrase appears in
  * that quote, so a quote can't vouch for a skill it doesn't mention.
  * Kept items get their evidence_quote replaced by the exact original JD text,
- * so later lookups can use plain indexOf. Also drops empty items and exact
- * duplicates.
+ * so later lookups can use plain indexOf, and a list-shaped jd_phrase is
+ * narrowed to the one skill (narrowListPhrase). Also drops empty items and
+ * exact duplicates.
  */
 export function checkEvidence(jdText: string, keywords: ExtractedKeyword[]): EvidenceCheckResult {
   const jd = normalizeWithMap(jdText);
@@ -129,7 +142,7 @@ export function checkEvidence(jdText: string, keywords: ExtractedKeyword[]): Evi
     result.kept.push({
       ...keyword,
       canonical_skill: skill,
-      jd_phrase: keyword.jd_phrase.trim(),
+      jd_phrase: narrowListPhrase(keyword.jd_phrase.trim(), skill),
       evidence_quote: exactQuote,
     });
   }
