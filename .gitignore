@@ -40,3 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# real JDs and resumes (resumes contain personal details); keep them local
+/tests/fixtures/jds/*
+!/tests/fixtures/jds/.gitkeep
+/tests/fixtures/resumes/*
+!/tests/fixtures/resumes/.gitkeep
+
+# local app data: SQLite db, uploaded files, Chroma
+/data/

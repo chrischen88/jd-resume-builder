@@ -2,6 +2,8 @@
 
 ## Overview
 
+Resume Tailor is a local, single-user app: it runs on the user's machine with a web UI, stores everything on local disk, and only sends data out for AI model and embedding calls.
+
 The user uploads a resume and a set of 2–20 job descriptions (a "target set"). The app:
 
 1. Extracts skills from every JD and ranks them by demand (how many JDs ask for each).
@@ -79,26 +81,23 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  UI[Next.js client] --> API[Route handlers]
-  API --> DB[(Postgres)]
-  API --> V[(Chroma)]
+  UI[Next.js client] --> API[Server Actions / route handlers]
+  API --> DB[(SQLite: data/app.db)]
+  API --> V[(Chroma: data/chroma)]
+  API --> FS[(Local files: data/uploads)]
   API --> LLM[lib/ai]
-  API --> Q[Inngest]
-  Q --> P[Parse worker]
-  Q --> X[Export worker]
-  P --> S[(Object storage)]
-  X --> S
-  LLM --> M[Claude API]
+  LLM --> M[Claude / OpenAI API]
 ```
 
-Model calls, parsing, and rendering run server-side only. Long-running work (parse, analyze, export) returns a job id; the interview streams via SSE.
+Everything except the model API runs on the user's machine. Model calls, parsing, and rendering run server-side only, in the Next.js process (no job queue); the interview streams via SSE.
 
 ## Data model
 
 | Entity | Key fields |
 | --- | --- |
 | User | id, email, name, contact info, preferences (page length, tone) |
-| Resume | id, user_id, source_file_url, parsed_json, is_master |
+| Document | id, kind (jd/resume), title, filename, stored_path, text, content_hash, created_at — the local library of everything uploaded or pasted |
+| Resume | id, user_id, document_id, parsed_json, is_master |
 | Role | id, resume_id, employer, title, location, start_date, end_date, bullets[] |
 | Skill | id, canonical_name, category, synonyms[] |
 | TargetSet | id, user_id, name, resume_id, status, created_at |
@@ -219,8 +218,8 @@ Interaction details: progress bar ("Gap 4 of 12", must-do = asked by ≥ half th
 | Area | Target |
 | --- | --- |
 | Privacy | No training on user data; zero-retention model settings where available |
-| Data control | Full export and account deletion within 30 days |
-| Security | TLS, encryption at rest, per-user row checks, signed expiring URLs |
+| Data control | All data lives in `data/`; deleting a library item removes its file; deleting `data/` removes everything |
+| Security | Server binds to 127.0.0.1 only (no auth); API keys only in `.env.local`; no data leaves the machine except model/embedding calls |
 | Latency | Analysis of 10 JDs < 30 s; first interview token < 2 s; export < 15 s |
 | Cost | Target < $0.50 per target set (verify against current model pricing) |
 | Reliability | Interview state saved after every answer; retries with backoff |
@@ -236,7 +235,7 @@ Interaction details: progress bar ("Gap 4 of 12", must-do = asked by ≥ half th
 
 ## Open questions
 
-- Personal tool or multi-user product? (affects auth, billing, privacy scope)
+- ~~Personal tool or multi-user product?~~ Decided 2026-09-23: local, single-user tool.
 - Browser extension to capture JDs in v2?
 - Default template and page length?
 - One master resume per user, or several tracks?
