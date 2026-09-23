@@ -19,7 +19,15 @@ export interface StrippedJd {
   keptOriginal: boolean;
 }
 
-/** Keep the original if stripping would leave less than this share of the words. */
+/**
+ * Fail-safe against a misread heading eating the real content: keep the
+ * original if fewer than MIN_KEPT_WORDS would remain, or if less than
+ * MIN_KEPT_WORD_SHARE would remain and no content heading ("About the role",
+ * "Requirements", …) survived. Real postings can be mostly boilerplate, so a
+ * low share alone isn't a reason to keep it. MIN_KEPT_WORDS is the same floor
+ * the URL importer uses for "is this a job description at all".
+ */
+const MIN_KEPT_WORDS = 50;
 const MIN_KEPT_WORD_SHARE = 0.4;
 const MAX_HEADING_LENGTH = 70;
 
@@ -30,7 +38,7 @@ const ROLE_WORDS =
 const BOILERPLATE_HEADINGS: [BoilerplateKind, RegExp][] = [
   [
     "eeo",
-    /^(equal (employment )?opportunity( employer)?|eeo( statement)?|diversity(,)? (equity,? )?(and|&) inclusion|our commitment to diversity|(reasonable )?accommodations?|e-verify|(applicant )?privacy (notice|policy|statement)|pay transparency|legal (notice|disclaimer)s?)$/i,
+    /^(equal (employment )?opportunity( employer)?|eeo( statement)?|diversity\b.*|our commitment to diversity|(reasonable )?accommodations?|e-verify|(applicant )?privacy (notice|policy|statement)|pay transparency|legal (notice|disclaimer)s?)$/i,
   ],
   [
     "benefits",
@@ -57,7 +65,7 @@ const BOILERPLATE_LINES: [BoilerplateKind, RegExp][] = [
   ],
   [
     "benefits",
-    /(base |anticipated |expected )?(salary|pay|compensation) range|\bbase salary\b|401\s?\(?k\)?|medical,? dental|paid time off|unlimited pto|equity (grant|package|plans?)|incentive bonus/i,
+    /(base |anticipated |expected )?(salary|pay|compensation) range|\bbase (salary|pay)\b|401\s?\(?k\)?|medical,? dental|paid time off|unlimited pto|equity (grant|package|plans?)|incentive bonus/i,
   ],
   [
     "company",
@@ -141,7 +149,10 @@ export function stripBoilerplate(jdText: string): StrippedJd {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  if (removed.length > 0 && wordCount(text) < wordCount(jdText) * MIN_KEPT_WORD_SHARE) {
+  const keptWords = wordCount(text);
+  const lowShare = keptWords < wordCount(jdText) * MIN_KEPT_WORD_SHARE;
+  const hasContentHeading = kept.some(isContentHeading);
+  if (removed.length > 0 && (keptWords < MIN_KEPT_WORDS || (lowShare && !hasContentHeading))) {
     return { text: jdText, removed: [], keptOriginal: true };
   }
   return { text, removed, keptOriginal: false };

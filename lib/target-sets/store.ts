@@ -69,7 +69,7 @@ export function createTargetSetStore({ db }: { db: Db }) {
      */
     async addJobs(
       targetSetId: string,
-      docs: Pick<DocumentRow, "id" | "kind" | "title" | "text">[],
+      docs: Pick<DocumentRow, "id" | "kind" | "title" | "text" | "sourceUrl">[],
     ): Promise<AddJobsResult> {
       return db.transaction(async (tx) => {
         const set = await tx.query.targetSets.findFirst({ where: eq(targetSets.id, targetSetId) });
@@ -105,6 +105,7 @@ export function createTargetSetStore({ db }: { db: Db }) {
               id: randomUUID(),
               targetSetId,
               documentId: doc.id,
+              sourceUrl: doc.sourceUrl,
               jdClean: stripBoilerplate(doc.text).text,
             })),
           );

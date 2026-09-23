@@ -51,7 +51,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | F1 | Resume import | Parse PDF/DOCX into roles, dates, bullets, skills, education; user confirms roles | P0 |
 | F2 | JD ingestion | Add 2–20 JDs per target set by paste or file; strip boilerplate (EEO, benefits, company blurb) | P0 |
-| F3 | JD ingestion | Add JDs by URL (Greenhouse, Lever, Workday, LinkedIn public pages) | P1 |
+| F3 | JD ingestion | Add JDs by URL: LinkedIn job links, plus any page with schema.org JobPosting data (Greenhouse, Lever, Ashby, many career sites); otherwise paste | P1 |
 | F4 | JD ingestion | Flag duplicate / near-duplicate JDs | P1 |
 | F5 | Extraction | Per JD: skills, tools, certifications, domain terms, soft skills, years of experience, seniority | P0 |
 | F6 | Aggregation | Merge synonyms into canonical skills, keeping each JD's exact phrase | P0 |
@@ -98,7 +98,7 @@ SQLite via Drizzle (`db/schema.ts`). Single local user, so there are no `user_id
 | Entity | Key fields |
 | --- | --- |
 | Profile | id (`local`), name, email, phone, location, links[], preferences (page length, tone) |
-| Document | id, kind (jd/resume), title, filename, stored_path, text, content_hash, created_at — the local library of everything uploaded or pasted |
+| Document | id, kind (jd/resume), title, filename, stored_path, source_url, text, content_hash, created_at — the local library of everything uploaded, pasted, or imported from a link |
 | KeywordExtraction | document_id, prompt_version, model, result — cached extraction per JD |
 | Resume | id, document_id, title, sections (contact, summary, skills, education, certifications, other), is_master |
 | Role | id, resume_id, position, employer, title, location, start_date, end_date |
@@ -225,7 +225,7 @@ Interaction details: progress bar ("Gap 4 of 12", must-do = asked by ≥ half th
 | --- | --- |
 | Privacy | No training on user data; zero-retention model settings where available |
 | Data control | All data lives in `data/`; deleting a library item removes its file; deleting `data/` removes everything |
-| Security | Server binds to 127.0.0.1 only (no auth); API keys only in `.env.local`; no data leaves the machine except model/embedding calls |
+| Security | Server binds to 127.0.0.1 only (no auth); API keys only in `.env.local`; no data leaves the machine except model/embedding calls. URL import fetches only the page the user gives, when asked; links to loopback/private/link-local addresses are refused, including after redirects |
 | Latency | Analysis of 10 JDs < 30 s; first interview token < 2 s; export < 15 s |
 | Cost | Target < $0.50 per target set (verify against current model pricing) |
 | Reliability | Interview state saved after every answer; retries with backoff |

@@ -25,7 +25,7 @@ export class LibraryError extends Error {
 
 export type AddDocumentInput =
   | { kind: DocumentKind; title?: string; file: { name: string; bytes: Uint8Array } }
-  | { kind: DocumentKind; title?: string; text: string };
+  | { kind: DocumentKind; title?: string; text: string; sourceUrl?: string };
 
 /** File name without extension, or the first line of pasted text. */
 export function deriveTitle(text: string, filename?: string): string {
@@ -71,6 +71,16 @@ export function createLibrary({ db, dataDir }: { db: Db; dataDir: string }) {
         );
       }
 
+      const sourceUrl = "text" in input ? (input.sourceUrl ?? null) : null;
+      if (sourceUrl) {
+        const sameUrl = await db.query.documents.findFirst({
+          where: and(eq(documents.kind, input.kind), eq(documents.sourceUrl, sourceUrl)),
+        });
+        if (sameUrl) {
+          throw new LibraryError(`Already in the library as “${sameUrl.title}”`, "duplicate");
+        }
+      }
+
       const contentHash = hashText(text);
       const existing = await db.query.documents.findFirst({
         where: and(eq(documents.kind, input.kind), eq(documents.contentHash, contentHash)),
@@ -93,6 +103,7 @@ export function createLibrary({ db, dataDir }: { db: Db; dataDir: string }) {
           title: input.title?.trim() || deriveTitle(text, filename ?? undefined),
           filename,
           storedPath,
+          sourceUrl,
           text,
           contentHash,
         })

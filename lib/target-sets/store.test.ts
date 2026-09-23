@@ -16,8 +16,20 @@ let library: Library;
 let store: TargetSetStore;
 let resumeId: string;
 
+// Long enough (50+ words of content) that boilerplate stripping applies.
 const jdText = (n: number) =>
-  `Role ${n}\nYou will build ML systems in Python.\nRequirements\n- SQL\n- Kubernetes\n\nThe base salary range is $150,000 - $190,000.`;
+  [
+    `Role ${n}`,
+    "You will build and deploy ML systems in Python for our fraud and risk products.",
+    "Requirements",
+    "- SQL and data modeling across large analytical datasets",
+    "- Kubernetes and containerized deployment of model services",
+    "- Experiment design, A/B testing, and statistical analysis",
+    "- Clear communication with product, design, and engineering partners",
+    "- Monitoring model performance and retraining in production",
+    "",
+    "The base salary range is $150,000 - $190,000.",
+  ].join("\n");
 
 beforeEach(async () => {
   dataDir = mkdtempSync(path.join(tmpdir(), "target-set-test-"));
@@ -55,6 +67,14 @@ describe("target set store", () => {
     expect(set.jobs.map((j) => j.documentTitle).sort()).toEqual(["JD 1", "JD 2"]);
     expect(set.jobs[0].jdClean).not.toContain("salary");
     expect(set.jobs[0].jdClean).toContain("- Kubernetes");
+  });
+
+  it("copies an imported JD's source URL onto the job", async () => {
+    const id = await store.create({ name: "Set", resumeId });
+    const url = "https://www.linkedin.com/jobs/view/4012345678/";
+    const doc = await library.add({ kind: "jd", text: jdText(1), sourceUrl: url });
+    await store.addJobs(id, [doc]);
+    expect((await store.get(id))!.jobs[0].sourceUrl).toBe(url);
   });
 
   it("skips JDs already in the set, including duplicates in one call", async () => {

@@ -13,6 +13,15 @@ function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
+/** "linkedin.com" from "https://www.linkedin.com/jobs/view/…". */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "link";
+  }
+}
+
 const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
 function DocumentList({
@@ -32,7 +41,9 @@ function DocumentList({
         {heading} <span className="font-normal text-muted">({items.length})</span>
       </h2>
       {items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">{empty}</p>
+        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
+          {empty}
+        </p>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {items.map((doc) => (
@@ -42,7 +53,8 @@ function DocumentList({
                   <summary className="cursor-pointer text-sm font-medium">
                     {doc.title}
                     <span className="ml-2 text-xs font-normal text-muted">
-                      {doc.filename ?? "pasted"} · {wordCount(doc.text).toLocaleString()} words ·{" "}
+                      {doc.filename ?? (doc.sourceUrl ? hostOf(doc.sourceUrl) : "pasted")} ·{" "}
+                      {wordCount(doc.text).toLocaleString()} words ·{" "}
                       {dateFormat.format(doc.createdAt)}
                     </span>
                   </summary>

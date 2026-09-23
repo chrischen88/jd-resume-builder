@@ -53,6 +53,8 @@ export const documents = sqliteTable(
     filename: text("filename"),
     /** Original file, relative to the data dir; null when pasted. */
     storedPath: text("stored_path"),
+    /** Web page it was imported from (SPEC F3); null for files and pastes. */
+    sourceUrl: text("source_url"),
     text: text("text").notNull(),
     /** sha256 of the normalized text, for duplicate detection. */
     contentHash: text("content_hash").notNull(),

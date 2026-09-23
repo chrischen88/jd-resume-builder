@@ -78,3 +78,27 @@ describe("library", () => {
     expect(await library.remove(row.id)).toBe(false);
   });
 });
+
+describe("library: imported from a URL", () => {
+  const url = "https://www.linkedin.com/jobs/view/4012345678/";
+
+  it("stores the source URL and rejects the same URL again, even if the text changed", async () => {
+    const row = await library.add({
+      kind: "jd",
+      title: "Acme – ML Engineer",
+      text: "Build models.",
+      sourceUrl: url,
+    });
+    expect(row).toMatchObject({ sourceUrl: url, filename: null, storedPath: null });
+    await expect(
+      library.add({ kind: "jd", text: "Build models, now updated.", sourceUrl: url }),
+    ).rejects.toMatchObject({
+      code: "duplicate",
+      message: "Already in the library as “Acme – ML Engineer”",
+    });
+  });
+
+  it("leaves source URL empty for pasted text", async () => {
+    expect((await library.add({ kind: "jd", text: "Pasted JD" })).sourceUrl).toBeNull();
+  });
+});

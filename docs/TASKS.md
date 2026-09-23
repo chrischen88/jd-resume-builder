@@ -50,7 +50,7 @@ Goal: prove the analysis is useful before building UI.
 ### JDs and analysis (F2, F5–F8)
 - [x] 1.8 Target set + add JDs endpoints; boilerplate stripping.
   - `lib/target-sets` store: create for a resume, add library JDs (all-or-nothing; skips ones already in the set; max 20, min 2 checked at analyze time), remove a JD, rename, list with job counts, delete. Server Actions come with the screen in 1.11 rather than as unused endpoints.
-  - `lib/parsing/boilerplate.ts`: deterministic stripping into `jobs.jd_clean`. Drops sections under EEO / benefits / pay / "About <Company>" headings (until the next content heading) and unheaded lines with strong phrases (equal opportunity employer, base salary range, 401(k), "raised $25 million"…). Output is only original lines, so quotes grounded in it are verbatim in the document. Keeps the original if stripping would leave < 40% of the words. On the 7 fixtures it removes exactly jd5's funding blurb and jd6's salary paragraph.
+  - `lib/parsing/boilerplate.ts`: deterministic stripping into `jobs.jd_clean`. Drops sections under EEO / benefits / pay / "About <Company>" headings (until the next content heading) and unheaded lines with strong phrases (equal opportunity employer, base salary range, 401(k), "raised $25 million"…). Output is only original lines, so quotes grounded in it are verbatim in the document. Fail-safe keeps the original if < 50 words would remain, or < 40% would remain with no content heading left (real postings can be mostly boilerplate). On the 7 fixtures it removes exactly jd5's funding blurb and jd6's salary paragraph; on two real LinkedIn imports it cut 622 → 122 and 686 → 415 words, keeping every role/requirements section.
   - For 1.9: extract and score on `jd_clean`. The extraction cache is keyed by document, so key it by the cleaned text (e.g. a hash) as well, or cached extractions of the full text get reused.
 - [ ] 1.9 `POST /api/target-sets/:id/analyze` job: extract → merge → score → coverage → write `JobKeyword` and `SkillDemand`.
 - [ ] 1.10 Embeddings for JobKeyword and Evidence into Chroma via `vectorStoreForUser()` (store + scoping already in `lib/vector`); weak coverage via cosine ≥ 0.80; delete vectors when rows are deleted.
@@ -86,7 +86,11 @@ Goal: prove the analysis is useful before building UI.
 
 ## Phase 2 — Reuse (3 weeks)
 
-- [ ] 2.1 JD import by URL (F3), best-effort with paste fallback.
+- [x] 2.1 JD import by URL (F3), best-effort with paste fallback.
+  - Done early, on request. "Or import from a link" on `/library` (JDs only). `lib/parsing/job-url`: LinkedIn links (`/jobs/view/<id>`, slugs, `?currentJobId=`) read the public job page's JSON-LD, then LinkedIn's public guest fragment if the page is walled; other sites need schema.org `JobPosting` JSON-LD. Anything else, or < 50 words, fails with "paste it instead"; page text is never guessed.
+  - `safeFetch`: http(s) only, all resolved addresses must be public (loopback/private/link-local/CGNAT/ULA blocked), redirects re-checked per hop (max 5), 10 s timeout, 2 MB cap, HTML only. Known gap: DNS is resolved again by fetch after the check (rebinding window); acceptable for a single-user local app.
+  - Checked with two real LinkedIn links: both came through the guest fragment (the public page had no JSON-LD). LinkedIn's markup leaves literal "__PRESENT" markers, now stripped.
+  - `documents.source_url` (migration 0004): duplicate check by URL; copied to `jobs.source_url` when a JD joins a set. Title defaults to "Company – Title". Failures log the error code only.
 - [ ] 2.2 Duplicate JD detection via embeddings (F4).
 - [ ] 2.3 Suggest experience-library entries before asking fresh questions.
 - [ ] 2.4 Learning item "done" → mini-interview to add it to the resume; export plan as checklist (F16).

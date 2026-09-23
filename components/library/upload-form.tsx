@@ -24,7 +24,7 @@ export function UploadForm() {
     if (state.status === "done" && state.added.length > 0 && state.errors.length === 0) {
       const form = formRef.current;
       if (!form) return;
-      for (const name of ["files", "text", "title"]) {
+      for (const name of ["files", "text", "title", "url"]) {
         const field = form.elements.namedItem(name);
         if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
           field.value = "";
@@ -82,7 +82,9 @@ export function UploadForm() {
           accept=".txt,.md,.docx,.pdf"
           className="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent"
         />
-        <p className="mt-1 text-xs text-muted">.txt, .md, .docx or .pdf, up to 10 MB each. Select several at once.</p>
+        <p className="mt-1 text-xs text-muted">
+          .txt, .md, .docx or .pdf, up to 10 MB each. Select several at once.
+        </p>
       </div>
 
       <div>
@@ -97,6 +99,28 @@ export function UploadForm() {
           className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
+
+      {kind === "jd" && (
+        <div>
+          <label htmlFor="url" className="mb-1 block text-sm font-medium">
+            Or import from a link
+          </label>
+          <input
+            id="url"
+            name="url"
+            type="url"
+            inputMode="url"
+            maxLength={2000}
+            placeholder="https://www.linkedin.com/jobs/view/…"
+            aria-describedby="url-help"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          />
+          <p id="url-help" className="mt-1 text-xs text-muted">
+            LinkedIn job links and most company career pages (Greenhouse, Lever, Ashby…). If a page
+            can&apos;t be read, paste the description instead.
+          </p>
+        </div>
+      )}
 
       <div>
         <label htmlFor="title" className="mb-1 block text-sm font-medium">
