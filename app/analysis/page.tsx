@@ -3,7 +3,7 @@ import Link from "next/link";
 import { z } from "zod";
 
 import { AnalyzeForm } from "@/components/analysis/analyze-form";
-import { analyzeSet, type SkillRow } from "@/lib/analysis/analyze-set";
+import { analyzeSet, type SkillAnalysisRow } from "@/lib/analysis/analyze-set";
 import type { Coverage } from "@/lib/analysis/coverage";
 import { currentExtractionKey, getExtractionStore, getLibrary } from "@/lib/library";
 
@@ -110,7 +110,7 @@ function Results({
   resumeTitle,
   jobCount,
 }: {
-  rows: SkillRow[];
+  rows: SkillAnalysisRow[];
   resumeTitle: string;
   jobCount: number;
 }) {

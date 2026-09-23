@@ -30,8 +30,8 @@ Goal: prove the analysis is useful before building UI.
 ## Phase 1 — MVP (6 weeks)
 
 ### Foundation
-- [ ] 1.1 SQLite + Drizzle; rest of the schema from SPEC §Data model.
-  - Started: `documents` table + auto-migration (`db/client.ts`), done in 0.8.
+- [x] 1.1 SQLite + Drizzle; rest of the schema from SPEC §Data model.
+  - `db/schema.ts`, migration `0002_core_schema`. Adapted for single user: `profile` row `local` instead of User and `user_id` columns (use `LOCAL_PROFILE_ID` as the vector `user_id`). Original and generated bullets share `bullets` so `proof_bullet_id` is a real row; per-JD scores in `job_skill_scores`, mentions in `job_keywords`; evidence↔skills via `evidence_skills`. SPEC §Data model updated to match. Delete rules tested in `db/schema.test.ts`. No data-access layer yet; each feature task adds its own.
 - [x] ~~1.2 Auth.js~~ Dropped: local single-user app. Server binds to 127.0.0.1 instead.
 - [x] ~~1.3 S3 storage~~ Replaced by local disk under `data/` (0.8).
 - [x] ~~1.4 Inngest~~ Dropped: long-running work runs in-process.

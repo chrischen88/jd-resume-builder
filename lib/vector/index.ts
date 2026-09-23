@@ -32,16 +32,16 @@ export function chromaClientFromEnv(env: Env = process.env): ChromaClient {
 }
 
 export interface UserVectorRecord {
-  /** Postgres row id (JobKeyword.id or Evidence.id); reused as the Chroma id. */
+  /** SQLite row id (JobKeyword.id or Evidence.id); reused as the Chroma id. */
   id: string;
   text: string;
   metadata?: Record<string, string | number | boolean>;
 }
 
 /**
- * Every read and write is pinned to one user's `user_id` metadata, the vector
- * equivalent of the per-user row checks on Postgres queries. Callers never
- * get an unscoped store.
+ * Every read and write is pinned to one user's `user_id` metadata
+ * (LOCAL_PROFILE_ID for the single local user). Callers never get an
+ * unscoped store.
  */
 export class UserScopedVectorStore {
   constructor(

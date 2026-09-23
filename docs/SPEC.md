@@ -93,24 +93,30 @@ Everything except the model API runs on the user's machine. Model calls, parsing
 
 ## Data model
 
+SQLite via Drizzle (`db/schema.ts`). Single local user, so there are no `user_id` columns; the one user is the `profile` row `local`, which is also the `user_id` on vectors.
+
 | Entity | Key fields |
 | --- | --- |
-| User | id, email, name, contact info, preferences (page length, tone) |
+| Profile | id (`local`), name, email, phone, location, links[], preferences (page length, tone) |
 | Document | id, kind (jd/resume), title, filename, stored_path, text, content_hash, created_at — the local library of everything uploaded or pasted |
-| Resume | id, user_id, document_id, parsed_json, is_master |
-| Role | id, resume_id, employer, title, location, start_date, end_date, bullets[] |
-| Skill | id, canonical_name, category, synonyms[] |
-| TargetSet | id, user_id, name, resume_id, status, created_at |
-| Job | id, target_set_id, company, title, seniority, source_url, jd_raw, jd_clean |
-| JobKeyword | id, job_id, skill_id, jd_phrase, evidence_quote, importance (required/preferred/mentioned), frequency, score |
-| SkillDemand | id, target_set_id, skill_id, jd_count, required_count, demand_score, coverage (covered/weak/missing), proof_bullet_id, rank, user_override |
-| GapAnswer | id, skill_demand_id, response (yes/somewhat/no), follow_up_qa jsonb, evidence_id |
-| Evidence | id, user_id, role_id, skill_ids[], situation, action, tools[], scale, result, metric |
-| Bullet | id, evidence_id, role_id, text, keywords_hit[], claims[], unverified_claims[], status (draft/accepted) |
-| LearningItem | id, user_id, skill_id, target_set_id, keywords[], related_skills[], jd_count, resources jsonb, status (to_learn/learning/done) |
-| ResumeVersion | id, target_set_id, job_id (null = set-wide), summary, skills[], bullet_ids[], score_before, score_after, docx_url, pdf_url |
+| KeywordExtraction | document_id, prompt_version, model, result — cached extraction per JD |
+| Resume | id, document_id, title, sections (contact, summary, skills, education, certifications, other), is_master |
+| Role | id, resume_id, position, employer, title, location, start_date, end_date |
+| Bullet | id, role_id, position, text, source (original/generated), status (draft/accepted), evidence_id, keywords_hit[], claims[], unverified_claims[] — original resume bullets and generated ones share this table |
+| Skill | id, key, canonical_name, category, synonyms[] (user-added) |
+| TargetSet | id, name, resume_id, status (draft/analyzing/ready/failed), created_at |
+| Job | id, target_set_id, document_id, company, title, seniority, years_experience_min, source_url, jd_clean |
+| JobKeyword | id, job_id, skill_id, jd_phrase, evidence_quote, importance (required/preferred/mentioned) — one row per mention |
+| JobSkillScore | job_id, skill_id, importance, frequency, in_title, in_first_third, score — score_j, once per JD and skill |
+| SkillDemand | id, target_set_id, skill_id, jd_count, required_count, demand_score, must_do, rank, coverage (covered/weak/missing), matched_term, coverage_evidence[], proof_bullet_id, user_rank, dismissed |
+| GapAnswer | id, skill_demand_id (one per gap), response (yes/somewhat/no), follow_ups[], evidence_id |
+| Evidence | id, role_id, skills (via evidence_skills), situation, action, tools[], scale, result, metric |
+| LearningItem | id, skill_id (one per skill), target_set_id, keywords[], related_skills[], jd_count, resources[], status (to_learn/learning/done) |
+| ResumeVersion | id, target_set_id, job_id (null = set-wide), summary, skills[], bullet_ids[], score_before, score_after, docx_path, pdf_path |
 
-Embeddings: one per requirement line (JobKeyword) and one per Evidence record, so retrieval is JD requirement → user evidence. Vectors live in Chroma (collections `job_keywords`, `evidence`), not Postgres; each Chroma record uses the Postgres row id as its id and carries `user_id` metadata for per-user filtering. Embeddings are created with OpenAI (`text-embedding-3-small` by default) through LangChain.
+Deletes cascade down ownership: resume → roles → bullets, resume → target sets → jobs, keywords, demands, answers. Deleting a library JD removes it from target sets. Evidence and learning items belong to the user and survive a target set's deletion. Skills can't be deleted while referenced.
+
+Embeddings: one per requirement line (JobKeyword) and one per Evidence record, so retrieval is JD requirement → user evidence. Vectors live in Chroma (collections `job_keywords`, `evidence`), not SQLite; each Chroma record uses the SQLite row id as its id and carries `user_id` metadata for per-user filtering. Embeddings are created with OpenAI (`text-embedding-3-small` by default) through LangChain.
 
 ## AI design
 

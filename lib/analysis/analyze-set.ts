@@ -11,7 +11,7 @@ export interface AnalyzedJob extends JobText {
   keywords: ExtractedKeyword[];
 }
 
-export interface SkillRow extends SkillDemand {
+export interface SkillAnalysisRow extends SkillDemand {
   category: SkillCategory;
   coverage: SkillCoverage["coverage"];
   matchedTerm: string | null;
@@ -22,7 +22,7 @@ export function analyzeSet(
   jobs: AnalyzedJob[],
   resumeText: string,
   options: MergeOptions = {},
-): SkillRow[] {
+): SkillAnalysisRow[] {
   const merged = mergeSkills(
     jobs.map((job) => ({
       jobId: job.jobId,

@@ -15,6 +15,13 @@
       "when": 1790187043239,
       "tag": "0001_keyword_extractions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790188373610,
+      "tag": "0002_core_schema",
+      "breakpoints": true
     }
   ]
 }
