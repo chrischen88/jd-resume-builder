@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "chroma": "chroma run --path data/chroma"
+    "chroma": "chroma run --path data/chroma",
+    "test:golden": "RUN_GOLDEN=1 vitest run tests/golden"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.11",

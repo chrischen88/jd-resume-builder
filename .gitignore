@@ -49,3 +49,6 @@ next-env.d.ts
 
 # local app data: SQLite db, uploaded files, Chroma
 /data/
+
+# golden test outputs (contain JD text)
+/tests/golden/output/

@@ -1,5 +1,7 @@
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
+import type { JobExtraction } from "@/lib/ai/extract-keywords";
+
 // SQLite schema (local, single user). The rest of SPEC §Data model lands in
 // task 1.1; this starts with the document library.
 
@@ -28,3 +30,35 @@ export const documents = sqliteTable(
 );
 
 export type DocumentRow = typeof documents.$inferSelect;
+
+/**
+ * Cached keyword extraction per JD, so re-analyzing a JD doesn't repeat the
+ * model call. Keyed by prompt version and model: changing either re-extracts.
+ * Documents are immutable, so a row never goes stale otherwise.
+ */
+export const keywordExtractions = sqliteTable(
+  "keyword_extractions",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    result: text("result", { mode: "json" })
+      .$type<Pick<JobExtraction, "job" | "keywords" | "dropped">>()
+      .notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("keyword_extractions_doc_version_idx").on(
+      table.documentId,
+      table.promptVersion,
+      table.model,
+    ),
+  ],
+);
+
+export type KeywordExtractionRow = typeof keywordExtractions.$inferSelect;

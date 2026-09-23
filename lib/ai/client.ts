@@ -46,6 +46,19 @@ const defaultLogger: AiLogger = (entry) => {
   console.info(JSON.stringify({ event: "ai_call", ...entry }));
 };
 
+/** Post-call guardrail counts (e.g. items dropped for ungrounded quotes). Counts only, never text. */
+export interface AiGuardrailLog {
+  prompt_id: string;
+  prompt_version: string;
+  counts: Record<string, number>;
+}
+
+export type AiGuardrailLogger = (entry: AiGuardrailLog) => void;
+
+export const defaultGuardrailLogger: AiGuardrailLogger = (entry) => {
+  console.info(JSON.stringify({ event: "ai_guardrail", ...entry }));
+};
+
 export class AiOutputError extends Error {
   constructor(
     message: string,
