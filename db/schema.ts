@@ -157,6 +157,8 @@ export const resumes = sqliteTable("resumes", {
   title: text("title").notNull(),
   sections: text("sections", { mode: "json" }).$type<ResumeSections>().notNull(),
   isMaster: integer("is_master", { mode: "boolean" }).notNull().default(false),
+  /** When the user checked the parsed roles (task 1.7); null = not yet. */
+  confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -173,7 +175,7 @@ export const roles = sqliteTable(
     employer: text("employer").notNull(),
     title: text("title").notNull(),
     location: text("location"),
-    /** Dates as written ("Mar 2022", "2019"); endDate null = present. */
+    /** Dates as written ("Mar 2022", "2019", "Present"); null if not stated. */
     startDate: text("start_date"),
     endDate: text("end_date"),
   },

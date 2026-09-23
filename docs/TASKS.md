@@ -37,9 +37,15 @@ Goal: prove the analysis is useful before building UI.
 - [x] ~~1.4 Inngest~~ Dropped: long-running work runs in-process.
 
 ### Resume import (F1)
-- [ ] 1.5 Resume from the Library → `Resume` row. (File upload and PDF/DOCX text extraction already done in 0.8.)
-- [ ] 1.6 LLM cleanup pass → structured roles/bullets/skills/education (Zod schema).
-- [ ] 1.7 Screen 1: upload + confirm/fix parsed roles.
+- [x] 1.5 Resume from the Library → `Resume` row. (File upload and PDF/DOCX text extraction already done in 0.8.)
+  - `importResume(documentId)` in `lib/resume` (deps injectable via `importResumeDocument`): parses, then saves resume + roles + original bullets in one transaction (`createResumeStore`). First resume becomes the master. Re-importing creates a new resume; `findByDocument` lets 1.7 offer the existing one instead.
+- [x] 1.6 LLM cleanup pass → structured roles/bullets/skills/education (Zod schema).
+  - Prompt `lib/ai/prompts/parse-resume.ts` (v1.0.0), copy-only. `groundParsedResume` checks every value verbatim against the resume text (shared matcher `createVerbatimMatcher` in `lib/analysis/evidence.ts`), stores the resume's own wording, and reports misses as `issues` (kept, not dropped) for 1.7 to show. Logs counts only.
+  - Golden (`tests/golden/parse-resume.golden.test.ts`, gpt-4o-mini): resume1 3 roles / 9 bullets, resume2 3 / 10, 0 of 42 and 0 of 34 values missing from the resume; dates split correctly, "Present" kept, two titles at one employer kept as two roles.
+- [x] 1.7 Screen 1: upload + confirm/fix parsed roles.
+  - `/resume` (import a library resume) and `/resume/[id]` (review). Each role is an editable card: fields plus bullets as one-per-line text; add a missed role, delete a role, then "Roles look right" sets `resumes.confirmed_at` (migration 0003). Values not found verbatim in the source file are highlighted amber (`findUnsupportedValues`, recomputed on each load; nothing stored). Bullet edits keep ids stable (`replaceOriginalBullets`) so later proof-bullet links survive; only original bullets are edited here. Summary, skills, and education are read-only for now.
+  - Checked in the browser with resume1: import 11 s, 3 roles / 9 bullets, nothing flagged; adding a made-up bullet flags it and updates the count.
+  - Open: edits after confirming don't re-require confirmation; no reordering of roles or moving a bullet between roles (delete + retype instead).
 
 ### JDs and analysis (F2, F5–F8)
 - [ ] 1.8 Target set + add JDs endpoints; boilerplate stripping.

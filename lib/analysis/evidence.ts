@@ -69,6 +69,34 @@ function trimTrailingPunctuation(text: string): string {
   return text.replace(/[\s.;:,!?]+$/u, "");
 }
 
+export interface VerbatimMatch {
+  /** The matched span exactly as it appears in the source. */
+  exact: string;
+  /** The fragment as matched, after normalizeForMatch (and trailing-punctuation trim). */
+  normalized: string;
+}
+
+/**
+ * Returns a finder for fragments that appear verbatim in `source`, modulo
+ * normalizeForMatch and trailing punctuation the model may add. Normalizes
+ * the source once, so it's cheap to call for many fragments.
+ */
+export function createVerbatimMatcher(source: string): (fragment: string) => VerbatimMatch | null {
+  const src = normalizeWithMap(source);
+  return (fragment) => {
+    let normalized = normalizeForMatch(fragment);
+    // Prefer the fragment as given; fall back to it without trailing punctuation.
+    let at = normalized ? src.text.indexOf(normalized) : -1;
+    if (at < 0) {
+      normalized = trimTrailingPunctuation(normalized);
+      at = normalized ? src.text.indexOf(normalized) : -1;
+    }
+    if (at < 0) return null;
+    const exact = source.slice(src.starts[at], src.ends[at + normalized.length - 1]);
+    return { exact, normalized };
+  };
+}
+
 /**
  * The model sometimes returns a whole list as jd_phrase ("PyTorch,
  * TensorFlow, scikit-learn") for each item in it. When the phrase is a list
@@ -98,7 +126,7 @@ export interface EvidenceCheckResult {
  * exact duplicates.
  */
 export function checkEvidence(jdText: string, keywords: ExtractedKeyword[]): EvidenceCheckResult {
-  const jd = normalizeWithMap(jdText);
+  const findInJd = createVerbatimMatcher(jdText);
   const result: EvidenceCheckResult = {
     kept: [],
     droppedQuoteNotFound: 0,
@@ -111,26 +139,20 @@ export function checkEvidence(jdText: string, keywords: ExtractedKeyword[]): Evi
   for (const keyword of keywords) {
     const phrase = normalizeForMatch(keyword.jd_phrase);
     const skill = keyword.canonical_skill.trim();
-    let quote = normalizeForMatch(keyword.evidence_quote);
-    if (!trimTrailingPunctuation(quote) || !phrase || !skill) {
+    if (!trimTrailingPunctuation(normalizeForMatch(keyword.evidence_quote)) || !phrase || !skill) {
       result.droppedEmpty++;
       continue;
     }
-    // Prefer the quote as given; fall back to it without trailing punctuation.
-    let at = jd.text.indexOf(quote);
-    if (at < 0) {
-      quote = trimTrailingPunctuation(quote);
-      at = jd.text.indexOf(quote);
-    }
-    if (at < 0) {
+    const match = findInJd(keyword.evidence_quote);
+    if (!match) {
       result.droppedQuoteNotFound++;
       continue;
     }
+    const { exact: exactQuote, normalized: quote } = match;
     if (!quote.includes(phrase)) {
       result.droppedPhraseNotFound++;
       continue;
     }
-    const exactQuote = jdText.slice(jd.starts[at], jd.ends[at + quote.length - 1]);
     const dedupeKey = [skill.toLowerCase(), phrase, keyword.importance, quote].join(
       "\u0000",
     );
