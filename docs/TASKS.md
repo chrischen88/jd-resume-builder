@@ -122,7 +122,11 @@ Goal: prove the analysis is useful before building UI.
   - Open: no learning-plan page yet (1.23; the counter links to the gaps page). The evidence record's fields come from the writer's reading of the answers, not the answers verbatim.
 
 ### Learning plan (F15)
-- [ ] 1.22 Learning plan prompt for No/Somewhat → `LearningItem` (no invented course names/URLs).
+- [x] 1.22 Learning plan prompt for No/Somewhat → `LearningItem` (no invented course names/URLs).
+  - `learning_plan` 1.0.0 (`lib/ai/prompts/learning-plan.ts`), one call per item: "what employers mean by this" (new `meaning` column, migration 0009), 2–4 related skills, 2–4 ways to learn it (course / certification / project / on_the_job, one each). Input: skill, JD phrasings and sentences (required first), "asked by n of N", the answer (Somewhat aims a step past their exposure), and the set's covered skills. Keywords stay the JD phrasings saved by the interview, not model output.
+  - Guardrail (`lib/learning-plan/checks.ts`): a resource is dropped if it has a URL, a quoted title, or a capitalized name the input doesn't have (acronyms and possessives count even at the start of a sentence); curated names allowed: GitHub. So a certification the JD names is kept, and an invented course or provider isn't. Drops are logged as counts only.
+  - Runs after the answer is saved (`after()` in the answer action), never blocking the interview; `prompt_version` null = not written yet, and a failed item stays pending for `fillPendingLearningPlans(setId)` to retry (1.23 will call it on page load).
+  - Live (gpt-4o-mini, 3 made-up skills): plans were generic and specific to the JD sentences; nothing dropped. Open: a made-up provider name at the very start of a sentence ("Acme offers…") isn't caught by the check; the prompt forbids it.
 - [ ] 1.23 Screen 6: learning plan grouped by demand, status toggles.
 
 ### Scoring and export (F17, F18)

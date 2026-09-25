@@ -113,7 +113,7 @@ SQLite via Drizzle (`db/schema.ts`). Single local user, so there are no `user_id
 | RewordSuggestion | id, target_set_id, bullet_id, skill_id, original_text, suggested_text, jd_phrase, status (pending/accepted/dismissed), prompt_version |
 | GapAnswer | id, skill_demand_id (one per gap), response (yes/somewhat/no), follow_ups[], role_id, draft (variants + evidence), completed_at, evidence_id |
 | Evidence | id, role_id, skills (via evidence_skills), situation, action, tools[], scale, result, metric |
-| LearningItem | id, skill_id (one per skill), target_set_id, keywords[], related_skills[], jd_count, resources[], status (to_learn/learning/done) |
+| LearningItem | id, skill_id (one per skill), target_set_id, keywords[], related_skills[], jd_count, meaning, resources[], prompt_version, status (to_learn/learning/done) |
 | ResumeVersion | id, target_set_id, job_id (null = set-wide), summary, skills[], bullet_ids[], score_before, score_after, docx_path, pdf_path |
 
 Deletes cascade down ownership: resume → roles → bullets, resume → target sets → jobs, keywords, demands, answers. Deleting a library JD removes it from target sets. Evidence and learning items belong to the user and survive a target set's deletion. Skills can't be deleted while referenced.

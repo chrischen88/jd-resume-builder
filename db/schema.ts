@@ -502,10 +502,14 @@ export const learningItems = sqliteTable("learning_items", {
   keywords: stringList("keywords"),
   relatedSkills: stringList("related_skills"),
   jdCount: integer("jd_count").notNull(),
+  /** "What employers mean by this" (learning_plan prompt). */
+  meaning: text("meaning"),
   resources: text("resources", { mode: "json" })
     .$type<LearningResource[]>()
     .notNull()
     .$defaultFn(() => []),
+  /** learning_plan prompt version that filled meaning, related skills, and resources; null = not yet. */
+  promptVersion: text("prompt_version"),
   status: text("status", { enum: LEARNING_STATUSES }).notNull().default("to_learn"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),

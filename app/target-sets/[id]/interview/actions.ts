@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { AiOutputError } from "@/lib/ai/client";
 import { acceptDraft, editDraft, getInterviewStore, InterviewError } from "@/lib/interview";
+import { fillPendingLearningPlans } from "@/lib/learning-plan";
 
 // Screen 5 (TASKS 1.16–1.21): each interview answer is saved as soon as it's
 // given. Model steps run through POST /api/target-sets/:id/interview/step.
@@ -53,9 +55,15 @@ export async function answerGap(_: InterviewActionState, formData: FormData) {
   const p = read({ ...gap, response: z.enum(["yes", "somewhat", "no"]) }, formData);
   if (!p.success) return invalid;
   const { targetSetId, demandId, response } = p.data;
-  return run(targetSetId, async () =>
+  const state = await run(targetSetId, async () =>
     (await getInterviewStore()).answer(targetSetId, demandId, response),
   );
+  // No and Somewhat create a learning item; its plan is written after the
+  // response is sent (task 1.22).
+  if (!state.error && response !== "yes") {
+    after(() => fillPendingLearningPlans(targetSetId));
+  }
+  return state;
 }
 
 export async function chooseRole(_: InterviewActionState, formData: FormData) {
