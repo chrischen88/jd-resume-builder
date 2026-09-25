@@ -57,3 +57,12 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* TipTap placeholder (review page inline editors). */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

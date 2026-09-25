@@ -70,9 +70,12 @@ export default async function InterviewPage({ params }: PageProps<"/target-sets/
         {breadcrumb}
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-xl font-semibold">Interview</h1>
-          <p className="text-sm text-muted">
-            <Link href={`/target-sets/${set.id}/gaps`} className="underline">
+          <p className="flex flex-wrap gap-4 text-sm text-muted">
+            <Link href={`/learning-plan?set=${set.id}`} className="underline">
               {view.learningCount} in your learning plan
+            </Link>
+            <Link href={`/target-sets/${set.id}/review`} className="underline">
+              Review &amp; export
             </Link>
           </p>
         </div>
@@ -137,6 +140,12 @@ export default async function InterviewPage({ params }: PageProps<"/target-sets/
                 Dismissed skills stay out of the interview; restore them on the gaps page.
               </p>
               <p className="flex flex-wrap gap-4">
+                <Link href={`/target-sets/${set.id}/review`} className="text-accent underline">
+                  Review and download your resume
+                </Link>
+                <Link href={`/learning-plan?set=${set.id}`} className="text-accent underline">
+                  See your learning plan
+                </Link>
                 <Link href={`/target-sets/${set.id}/strengths`} className="text-accent underline">
                   See your strengths
                 </Link>

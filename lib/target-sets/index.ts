@@ -10,6 +10,7 @@ import { createAnalysisRunner, type AnalysisRunner } from "./analysis-runner";
 import { createGapStore, type GapStore } from "./gaps";
 import { analyzeTargetSet } from "./analyze";
 import { createTargetSetStore, TargetSetError, type TargetSetStore } from "./store";
+import { scoreTargetSet as score, type TargetSetScore } from "./score";
 import { createSuggestionStore, type SuggestionStore } from "./suggestions";
 
 export { MAX_JOBS, MIN_JOBS, STRONGEST_BULLETS, TargetSetError } from "./store";
@@ -26,6 +27,7 @@ export type { AnalysisProgress, AnalysisResult } from "./analyze";
 export type { AnalysisStatus } from "./analysis-runner";
 export type { AcceptResult, SuggestionView } from "./suggestions";
 export type { Direction, Gap, GapOverview, GapSource } from "./gaps";
+export type { TargetSetScore } from "./score";
 
 export async function getTargetSetStore(): Promise<TargetSetStore> {
   return createTargetSetStore({ db: await getDb(), removeKeywordVectors });
@@ -76,4 +78,9 @@ export async function suggestRewordings(targetSetId: string) {
 
 export async function getGapStore(): Promise<GapStore> {
   return createGapStore({ db: await getDb() });
+}
+
+/** Coverage score before/after the interview (task 1.24). */
+export async function scoreTargetSet(targetSetId: string, resumeId: string): Promise<TargetSetScore> {
+  return score(await getDb(), targetSetId, resumeId);
 }

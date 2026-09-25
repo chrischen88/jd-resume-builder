@@ -50,3 +50,9 @@ export const DEFAULT_STRENGTH_WEIGHTS: StrengthWeights = {
   result: 1.5,
   keywords: 1.5,
 };
+
+// Coverage score (SPEC F17): demand-weighted share of the set's skills the
+// resume shows, 0–100.
+//   score = 100 · Σ demand(s)·credit(coverage(s)) / Σ demand(s)
+
+export const COVERAGE_CREDIT = { covered: 1, weak: 0.5, missing: 0 } as const;

@@ -144,4 +144,31 @@ describe("learning plan", () => {
     expect(await fillLearningPlans(store, failing, setId)).toBe(0);
     expect(await store.pending(setId)).toHaveLength(1);
   });
+
+  it("lists items with their set's job count and saves status changes", async () => {
+    const interview = createInterviewStore({ db });
+    await interview.answer(setId, "d-ab", "somewhat");
+    await interview.answer(setId, "d-k8s", "no");
+    const store = createLearningPlanStore({ db });
+    await fillLearningPlans(store, async () => PLAN, setId);
+
+    const items = await store.list({ targetSetId: setId });
+    expect(items).toHaveLength(2);
+    const ab = items.find((i) => i.name === "A/B testing")!;
+    expect(ab).toMatchObject({
+      jdCount: 2,
+      jobCount: 3,
+      targetSetName: "Set",
+      keywords: expect.arrayContaining(["experimentation", "A/B tests"]),
+      meaning: "Running experiments.",
+      planned: true,
+      status: "to_learn",
+    });
+    expect(await store.sets()).toEqual([{ id: setId, name: "Set" }]);
+    expect(await store.list({ targetSetId: "00000000-0000-4000-8000-000000000000" })).toEqual([]);
+
+    expect(await store.setStatus(ab.id, "learning")).toBe(true);
+    expect((await store.list()).find((i) => i.id === ab.id)!.status).toBe("learning");
+    expect(await store.setStatus("gone", "done")).toBe(false);
+  });
 });
