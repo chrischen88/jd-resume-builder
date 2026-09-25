@@ -29,6 +29,7 @@ export interface GapSource {
 
 export interface Gap {
   demandId: string;
+  skillId: string;
   name: string;
   category: SkillRow["category"];
   coverage: "missing" | "weak";
@@ -155,6 +156,7 @@ export function createGapStore({ db }: { db: Db }) {
 
       const toGap = (row: (typeof rows)[number]): Gap => ({
         demandId: row.demand.id,
+        skillId: row.skill.id,
         name: row.skill.canonicalName,
         category: row.skill.category,
         coverage: row.demand.coverage as Gap["coverage"],

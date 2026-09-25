@@ -236,16 +236,22 @@ export default async function GapsPage({ params }: PageProps<"/target-sets/[id]/
                 )}
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                disabled
-                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-60"
-              >
-                Start the interview
-              </button>
-              <p className="text-xs text-muted">The interview comes in the next update.</p>
-            </div>
+            {overview.active.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/target-sets/${set.id}/interview`}
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
+                >
+                  {overview.active.some((g) => g.answer)
+                    ? "Continue the interview"
+                    : "Start the interview"}
+                </Link>
+                <p className="text-xs text-muted">
+                  One skill at a time, in this order. Stop whenever you like; your answers are
+                  saved.
+                </p>
+              </div>
+            )}
           </section>
 
           {overview.dismissed.length > 0 && (

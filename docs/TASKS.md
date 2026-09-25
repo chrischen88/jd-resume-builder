@@ -102,12 +102,24 @@ Goal: prove the analysis is useful before building UI.
   - The strengths page's summary excerpt helper moved to `components/target-sets/excerpt.tsx`, shared by both screens.
   - Checked in the browser on the 9-JD fixture set (67 gaps): moved A/B testing to the top (order saved 1..n), dismissed Adaptability (66 left, shown under Dismissed), opened "Why this skill?".
   - Open: "Start the interview" is disabled until 1.16. 67 gaps from 9 JDs is a lot; most are asked by 1 JD, so the interview should let the user stop early.
-- [ ] 1.16 Interview state machine: next gap → Yes/Somewhat/No → follow-ups → draft → accept. Persist after every answer.
-- [ ] 1.17 Follow-up question prompt per skill category; skip already-answered facts.
-- [ ] 1.18 Bullet writing prompt: 2 variants + `keywords_hit[]` + `claims[]`.
-- [ ] 1.19 Claim-check pass → `unverified_claims[]`; export blocked while any exist.
-- [ ] 1.20 Accept writes bullet under the role and skill into Skills section; save Evidence to library (F19).
-- [ ] 1.21 Screen 5: split view (question left, live resume right), SSE streaming, keyboard shortcuts, progress bar.
+- [x] 1.16 Interview state machine: next gap → Yes/Somewhat/No → follow-ups → draft → accept. Persist after every answer.
+  - `lib/interview/state.ts`: the stage is derived from the saved `gap_answers` row (migration 0008 adds `role_id`, `draft`, `completed_at`): ask → role (skipped with one role) → follow_up / needs_question (2–4 follow-ups) → needs_draft → draft → done. The current gap is the first unfinished one in the user's gap order (1.15). Every answer is a Server Action that writes immediately, so pausing is just leaving.
+  - No → learning item (JD phrasings as keywords, JD count), done; never touches the resume. Somewhat → learning item too, then the same questions. Certification: Yes adds it to the certifications section, no questions, no Somewhat. Skip moves the gap to the end of the order; "Start this one over" clears its answers (and a No/Somewhat learning item still "to learn"), refused once the resume was changed.
+- [x] 1.17 Follow-up question prompt per skill category; skip already-answered facts.
+  - `follow_up_question` 1.1.0: one question at a time, aimed per category (hard skill / tool / soft skill / domain; Somewhat asks for the closest real experience and their part), never leading. Code enforces 2–4: fallback questions if the model stops before 2, a draft at 4; a question that repeats an earlier one (Jaccard ≥ 0.7) or asks for a number after the user said they don't know one counts as "enough" (gpt-4o-mini did both in testing).
+- [x] 1.18 Bullet writing prompt: 2 variants + `keywords_hit[]` + `claims[]`.
+  - `write_bullet` 1.1.0: two versions + claims + structured evidence, from the answers only; JD phrase once (≤ 3 words, none if already used 3 times on the resume); honest verbs for Somewhat; no credit for outcomes the answers don't tie to the person; present tense for current roles. `keywords_hit` is computed in code, not taken from the model.
+- [x] 1.19 Claim-check pass → `unverified_claims[]`; export blocked while any exist.
+  - `check_claims` 1.1.0 (separate call per version, including causal links and role strength). A claim counts as supported only if the model says so and its quote is really in the answers/resume; any number the user didn't give is unverified. Unverified claims show amber with "It's true" (recorded with the answers) or Edit (re-checked). Accepting keeps them on the bullet; `exportBlockers(resumeId)` lists bullets still carrying any, for 1.25 to refuse export.
+  - Live: strict rather than lenient; it sometimes flags claims the answers do support (one click to confirm).
+- [x] 1.20 Accept writes bullet under the role and skill into Skills section; save Evidence to library (F19).
+  - Accept (one transaction): generated, accepted bullet at the end of the chosen role (keywords_hit, claims, unverified_claims, evidence_id); Evidence row + evidence_skills; on Yes the skill joins an "Additional skills" line (unless already listed); the resume's analyzed sets are marked out of date. Then the evidence is indexed in Chroma (`evidence` collection) best-effort.
+- [x] 1.21 Screen 5: split view (question left, live resume right), SSE streaming, keyboard shortcuts, progress bar.
+  - `/target-sets/[id]/interview` (from "Start / Continue the interview" on the gaps page): "Gap n of N · k done" progress bar, learning-plan counter, the gap card ("n of your N target roles ask for …", why, closest resume line), the current step, your answers so far, Skip for now / Start over / Pause. Right: the resume with interview bullets and skills highlighted (keyword tags, unconfirmed claims with "It's true"), and the draft previewed under its role.
+  - Keys: 1/2/3 = Yes/Somewhat/No; Enter answers a question (Shift+Enter new line); 1/2 pick a version, Enter adds it.
+  - Model steps stream over SSE from `POST /api/target-sets/:id/interview/step` (same-origin, one run per gap at a time): progress events ("Thinking of the next question…", "Writing two versions…", "Checking every claim…"), then question/draft/error. Progress, not tokens: every prompt's JSON is validated with Zod before use, so partial output isn't shown. Questions take ~1–2 s, drafts + checks ~4–6 s on gpt-4o-mini.
+  - Checked in the browser (scratch DB, gpt-4o-mini): Yes on A/B testing (role pick, 4 questions incl. two skips, draft with one flagged claim, accepted version 2 → bullet under Intel role, "Additional skills: A/B testing", evidence indexed); No on AI agents (learning plan 1 → 2 with the next Somewhat); Somewhat on Model deployment (3 questions, honest "supporting" version accepted, no skills-section entry).
+  - Open: no learning-plan page yet (1.23; the counter links to the gaps page). The evidence record's fields come from the writer's reading of the answers, not the answers verbatim.
 
 ### Learning plan (F15)
 - [ ] 1.22 Learning plan prompt for No/Somewhat → `LearningItem` (no invented course names/URLs).

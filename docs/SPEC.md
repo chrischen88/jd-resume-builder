@@ -74,7 +74,8 @@ flowchart TD
 ### Handling answers
 
 - **Yes:** gather role, action, tools, scale (team, users, budget, data volume), outcome. Write the bullet, update the resume.
-- **Somewhat:** ask for adjacent experience, write it honestly ("exposure to", "supported"). Also create a LearningItem.
+- **Somewhat:** ask for adjacent experience, write it honestly ("exposure to", "supported"). Also create a LearningItem. The skill is not added to the Skills section (a skills list implies proficiency); the bullet carries it.
+- **Certifications:** Yes adds the certification to the certifications section, with no follow-ups or bullet; there's no Somewhat.
 - **No:** never add to the resume. Create a LearningItem with keywords, related skills, JD count.
 
 ## Architecture
@@ -110,7 +111,7 @@ SQLite via Drizzle (`db/schema.ts`). Single local user, so there are no `user_id
 | JobSkillScore | job_id, skill_id, importance, frequency, in_title, in_first_third, score — score_j, once per JD and skill |
 | SkillDemand | id, target_set_id, skill_id, jd_count, required_count, demand_score, must_do, rank, coverage (covered/weak/missing), matched_term, coverage_evidence[], terms[], proof_bullet_id, user_rank, dismissed |
 | RewordSuggestion | id, target_set_id, bullet_id, skill_id, original_text, suggested_text, jd_phrase, status (pending/accepted/dismissed), prompt_version |
-| GapAnswer | id, skill_demand_id (one per gap), response (yes/somewhat/no), follow_ups[], evidence_id |
+| GapAnswer | id, skill_demand_id (one per gap), response (yes/somewhat/no), follow_ups[], role_id, draft (variants + evidence), completed_at, evidence_id |
 | Evidence | id, role_id, skills (via evidence_skills), situation, action, tools[], scale, result, metric |
 | LearningItem | id, skill_id (one per skill), target_set_id, keywords[], related_skills[], jd_count, resources[], status (to_learn/learning/done) |
 | ResumeVersion | id, target_set_id, job_id (null = set-wide), summary, skills[], bullet_ids[], score_before, score_after, docx_path, pdf_path |
@@ -198,8 +199,7 @@ Prompts are versioned in `lib/ai/prompts`. Golden tests on 20–30 fixture JDs c
 | GET | /api/target-sets/:id/strengths | Covered skills, strongest bullets, suggestions |
 | GET | /api/target-sets/:id/gaps | Ranked gaps with JD counts |
 | PATCH | /api/target-sets/:id/gaps | Reorder, skip, dismiss |
-| GET | /api/target-sets/:id/interview/next | Next gap + question (SSE) |
-| POST | /api/gaps/:id/answer | Submit answer; returns next question, draft bullet, or learning item |
+| POST | /api/target-sets/:id/interview/step | Run the pending model step for a gap (next question, or drafts + claim check); progress as SSE |
 | PATCH | /api/bullets/:id | Accept (writes to resume), edit, regenerate |
 | GET | /api/learning-plan | Learning items, filterable |
 | PATCH | /api/learning-items/:id | Update status; "done" starts mini-interview |

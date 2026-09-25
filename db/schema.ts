@@ -426,7 +426,33 @@ export const GAP_RESPONSES = ["yes", "somewhat", "no"] as const;
 
 export interface FollowUp {
   question: string;
+  /** Null while waiting for the user; "" if they skipped the question. */
   answer: string | null;
+}
+
+/** One drafted bullet (SPEC §AI design 6–7). */
+export interface DraftVariant {
+  text: string;
+  keywordsHit: string[];
+  claims: string[];
+  /** Claims the check couldn't tie to the user's answers or resume. */
+  unverifiedClaims: string[];
+}
+
+/** Structured evidence taken from the user's answers (SPEC "Evidence"). */
+export interface EvidenceFields {
+  situation: string | null;
+  action: string;
+  tools: string[];
+  scale: string | null;
+  result: string | null;
+  metric: string | null;
+}
+
+export interface GapDraft {
+  variants: DraftVariant[];
+  evidence: EvidenceFields;
+  promptVersion: string;
 }
 
 /** The interview answer for one gap; saved after every answer (F11). */
@@ -444,6 +470,12 @@ export const gapAnswers = sqliteTable("gap_answers", {
   evidenceId: text("evidence_id").references(() => evidence.id, {
     onDelete: "set null",
   }),
+  /** The role the experience was in (Yes/Somewhat). */
+  roleId: text("role_id").references(() => roles.id, { onDelete: "set null" }),
+  /** Bullet drafts awaiting accept / edit / regenerate. */
+  draft: text("draft", { mode: "json" }).$type<GapDraft>(),
+  /** Set when the gap is finished: answered No, bullet accepted, or certification added. */
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
